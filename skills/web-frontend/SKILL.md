@@ -11,9 +11,10 @@ Logic runs on the server by default: data calls, parsing and checks run on the a
 
 - Vertical by default: split by feature, not by type. Atomic design inside it.
 - `app/`: routes only (page, layout, `loading.tsx` skeleton, `error.tsx`, a route's client part beside its server `page.tsx`), composing features.
-- `components/`: shared atoms and molecules only. Props only: no data, no feature knowledge. shadcn/ui first; a custom component needs a PR note why.
+- Templates are the page layouts in `app/` (route layouts), composing features.
+- `components/`: shared atoms, molecules and organisms. Props only: no data fetching, no feature knowledge; actions and data come in as props. shadcn/ui first; a custom component needs a PR note why.
 - `features/<feature>/`: one folder owns that feature's atoms, molecules, organisms, hooks and server parts. Its organisms get data through its hooks wrapping the API client.
-- Something moves to shared only when a second feature needs it, and only if it is an atom or molecule. `lib/` for shared non-UI code.
+- Something moves to shared when a second feature needs it. `lib/` for shared non-UI code.
 - Server components by default; `'use client'` as low as possible.
 - State: server data via the API client plus TanStack Query, never copied into `useState`; view state in URL params; forms with React Hook Form, live hints from shared rules, the server deciding on submit; local UI state in the owning component. No global store.
 - Mutations in their hook, which invalidates. Show pending, success, failure; failures keep user input. Destructive actions confirm.
