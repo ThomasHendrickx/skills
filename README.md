@@ -16,8 +16,15 @@ This installs into `.agents/skills/` (read by Codex) and links each skill into `
 
 - `test-driven-development`: red-green-refactor, commit evidence, test layers and rules.
 - `typescript`: types, errors, validation, naming.
-- `domain-modelling`: ports and adapters, aggregates, use cases.
-- `web-frontend`: React and Next.js structure, state, React rules.
+- `domain-modelling`: ports and adapters, invariants, use cases, events.
+- `web-frontend`: feature structure, state, React rules.
+- `code-review`: acceptance criteria and standards as two independent axes.
+- `pull-request`: the shape of a pull request body.
+- `writing-for-agents`: skills, CLAUDE.md and other docs agents read.
+
+## Repo companions
+
+These skills state principles. Each repo keeps companion skills (`<repo>-<area>`) for its code shape, folders and what its lint enforces, loaded together with the shared skill they extend.
 
 ## Versions
 
@@ -25,4 +32,8 @@ Immutable semver tags (`v1.0.0`). Major: a skill removed or renamed, or a rule r
 
 ## Writing a skill
 
-Front matter holds only `name` (same as the folder) and `description` (when to use it). No harness-specific fields, tool names or project paths. Bullets, under about 40 lines; longer material goes to `references/`.
+Follow `writing-for-agents`.
+
+## Credits
+
+`code-review`, `pull-request` and `writing-for-agents` adapt ideas from [mattpocock/skills](https://github.com/mattpocock/skills) (MIT).
