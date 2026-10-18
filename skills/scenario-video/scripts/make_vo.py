@@ -11,7 +11,8 @@ BASE = "https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-file
 os.makedirs(CACHE, exist_ok=True)
 for f in ("kokoro-v1.0.onnx", "voices-v1.0.bin"):
     if not os.path.exists(os.path.join(CACHE, f)):
-        print("downloading", f); urllib.request.urlretrieve(BASE + f, os.path.join(CACHE, f))
+        print("downloading", f); urllib.request.urlretrieve(BASE + f, os.path.join(CACHE, f + ".part"))
+        os.replace(os.path.join(CACHE, f + ".part"), os.path.join(CACHE, f))
 BASE_SPEED, MAX_SPEED = 0.96, 1.18
 spec = json.load(open(os.path.join(wd, "vo.json"), encoding="utf-8"))
 voice = spec.get("voice", "af_heart")
