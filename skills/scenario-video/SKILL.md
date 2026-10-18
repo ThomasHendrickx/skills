@@ -28,7 +28,7 @@ Story rules:
 - Plain words: people, apps, agents, the network. No product jargon, vendor names or em dashes. The end card says "Scenario".
 
 Gotchas:
-- A paused or killed export starts again from frame 0: about 8 minutes for 90 seconds on 2 cores, longer when anything heavy runs beside it.
+- `export.py` takes about 6 minutes for 90 seconds on 2 cores, longer with anything heavy beside it; stopped midway, it continues from its saved frames when run again.
 - The voice reads names and numbers its own way: respell names in `vo.json` (`"Jens": "Yens"`) and write times as words ("ten fifteen").
 - `check_voice.py` often drops the first word of the file (check that line alone); a swallowed "-ed" before "the" is real: reword the line.
-- `make_vo.py` downloads the voice model once (about 340 MB, from GitHub); `export.py` needs Google Fonts and stops when they did not load.
+- `make_vo.py` downloads the voice model once (about 350 MB, from GitHub); `export.py` needs Google Fonts and stops when they did not load.
