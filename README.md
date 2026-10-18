@@ -21,6 +21,7 @@ This installs into `.agents/skills/` (read by Codex) and links each skill into `
 - `code-review`: acceptance criteria and standards as two independent axes.
 - `pull-request`: the shape of a pull request body.
 - `writing-for-agents`: skills, CLAUDE.md and other docs agents read.
+- `scenario-video`: an Aeolus use-case script to a 90-second video (the same story without and with Aeolus), as a page and an MP4; the look, engine and score ship with it.
 
 ## Repo companions
 
