@@ -1,32 +1,36 @@
-/* scenario-video engine: plays SCENARIO (see references/scenario.md). Run A without Aeolus, the switch, run B with Aeolus, the proof card, the end card. */
+/* scenario-video engine: plays SCENARIO (see references/scenario.md). Run A, the switch, run B, the proof card, an optional closing card, the end card. */
 const SC=SCENARIO,TL=SC.timeline,DUR=TL.dur;
 const A0=TL.a0,A1=TL.a1,JOIN0=TL.join,B0=TL.b0,PROOF0=TL.proof,END0=TL.end;
-const MARK0=TL.mark??A1+0.8,FLY0=TL.fly??JOIN0+0.8,CHIPB=FLY0+0.75;
-const P=SC.people,A=SC.apps,G=SC.agents,JC=TL.center;
+const MARK_ON=TL.mark!==false,MARK0=typeof TL.mark==="number"?TL.mark:A1+0.8,FLY0=TL.fly??JOIN0+0.8,CHIPB=TL.chipB??FLY0+0.75;
+const NET0=TL.netFrom??JOIN0,WAVE=TL.wave!==false;
+const P=SC.people,A=SC.apps,G=SC.agents,JC=TL.center,F=SC.frames||{};
+const FR=Object.fromEntries(Object.entries(F).map(([k,f])=>[k,{x:f.x+f.w/2,y:f.y+f.h/2,w:f.w,h:f.h}]));
 Object.values(P).forEach(p=>{if(!p.r)p.r=AV});
 const SHOW=SC.show||{};
 const showAmt=(k,t)=>{const w=SHOW[k];if(!w)return 1;let m=0;w.forEach(([a,b])=>{m=Math.max(m,Math.min(win(t,a,0.45),1-win(t,b,0.4)))});return m};
-const pt=k=>P[k]||A[k]||G[k];
-const aw=k=>A[k].w||AW,ah=k=>A[k].h||AH;
+const pt=k=>P[k]||A[k]||G[k]||FR[k];
+const aw=k=>(A[k]||FR[k]).w||AW,ah=k=>(A[k]||FR[k]).h||AH;
 const isOut=k=>!!((P[k]&&P[k].outside)||(A[k]&&A[k].outside));
 function edge(k,toward){const n=pt(k);const dx=toward.x-n.x,dy=toward.y-n.y,d=Math.hypot(dx,dy)||1;
-  if(A[k]){const hx=aw(k)/2+3,hy=ah(k)/2+3,s=Math.min(hx/Math.abs(dx||1e-6),hy/Math.abs(dy||1e-6));return{x:n.x+dx*s,y:n.y+dy*s}}
+  if(A[k]||FR[k]){const hx=aw(k)/2+3,hy=ah(k)/2+3,s=Math.min(hx/Math.abs(dx||1e-6),hy/Math.abs(dy||1e-6));return{x:n.x+dx*s,y:n.y+dy*s}}
   const r=P[k]?n.r+5:n.r+3;return{x:n.x+dx/d*r,y:n.y+dy/d*r}}
 const joinT=k=>{const n=pt(k);return JOIN0+Math.hypot(n.x-JC.x,n.y-JC.y)/700};
 /* the same decisions, by the same people, in both runs */
-const DEC=SC.decisions,NDEC=DEC.who.length;
+const DEC=SC.decisions||{who:[],a:[],b:[],tags:[]},NDEC=DEC.who.length;
 /* hops: [from,to,start,end,kind,bend,handoff]; a hand-off is a step a person carried */
 const HOPS=SC.hops;
 const HO_T=[...(SC.notes||[]).filter(n=>n.handoff).map(n=>n.handoff),...HOPS.filter(h=>h[6]).map(h=>h[3])].sort((a,b)=>a-b);
-/* the network: one arc per connection; work in run B always travels along it */
-const EB=SC.edges;
-const bendOf=(a,b)=>EB[a+">"+b]??(EB[b+">"+a]!=null?-EB[b+">"+a]:null);
-const hopBend=h=>(h[2]>=B0?bendOf(h[0],h[1]):null)??h[5]??0;
-const EDGES=Object.keys(EB).map(k=>{const [a,b]=k.split(">");const e=[a,b];e.out=isOut(a)||isOut(b);
-  e.uses=HOPS.filter(h=>h[2]>=B0&&((h[0]===a&&h[1]===b)||(h[0]===b&&h[1]===a))).map(h=>[h[2],h[3]]);e.lit=e.uses.length?e.uses[0][0]-0.2:99;return e});
+/* the network: one arc per connection ("a>b": bend, or {bend, from, to} for one that exists only then); work on the network travels along it */
+const EB=SC.edges,ebend=k=>{const v=EB[k];return v==null?null:typeof v==="object"?v.bend:v};
+const bendOf=(a,b)=>ebend(a+">"+b)??(ebend(b+">"+a)!=null?-ebend(b+">"+a):null);
+const vis=(k,t)=>G[k]?(SHOW[k]?showAmt(k,t):win(t,G[k].from,0.55)):showAmt(k,t);
+const hopBend=h=>(h[2]>=NET0?bendOf(h[0],h[1]):null)??h[5]??0;
+const EDGES=Object.keys(EB).map(k=>{const [a,b]=k.split(">"),v=EB[k],e=[a,b];e.out=isOut(a)||isOut(b);e.from=(typeof v==="object"&&v.from)||-1;e.to=(typeof v==="object"&&v.to)||1e9;
+  e.uses=HOPS.filter(h=>h[2]>=Math.max(NET0,e.from)&&h[2]<=e.to&&((h[0]===a&&h[1]===b)||(h[0]===b&&h[1]===a))).map(h=>[h[2],h[3]]);e.lit=e.uses.length?e.uses[0][0]-0.2:99;return e});
 const heat=(e,t)=>{let m=0;e.uses.forEach(([a,b])=>{m=Math.max(m,band(t,a-0.25,b+1.3,0.3))});return m};
 /* story clocks */
 const CLK_A=SC.clockA,KEYS=SC.clockB.keys;
+const dayB=t=>{let d=SC.clockB.day;KEYS.forEach(k=>{if(k[2]&&t>=k[0])d=k[2]});return d};
 function storyMin(t){for(let i=0;i<KEYS.length-1;i++){const[a,va]=KEYS[i],[b,vb]=KEYS[i+1];if(t<=b)return Math.round(lerp(va,vb,clamp((t-a)/(b-a))))}return KEYS[KEYS.length-1][1]}
 const hm=m=>String(Math.floor(m/60)).padStart(2,"0")+":"+String(m%60).padStart(2,"0");
 /* where a tag sits: right/left/above/below of a person or agent, on an app, above an agent, or at x,y */
@@ -43,35 +47,38 @@ const TAGS=[...SC.tags,...[DEC.a,DEC.b].flatMap(D=>D.map((d,j)=>({from:d,to:d+1.
 
 /* ---------- the world at time t ---------- */
 function drawWorld(t){
-  const net=t>=JOIN0;
+  const net=t>=NET0;
+  /* computers, under everything else */
+  Object.entries(F).forEach(([k,f])=>{const a=showAmt(k,t);if(a>0)alphaDo(a,()=>frameBox(f))});
   /* run A: amber traces of every step a person carried, until the run ends */
   const tangle=1-win(t,A1,0.8);
   if(tangle>0)HOPS.forEach(h=>{if(h[2]<A1&&h[6]&&t>h[3])alphaDo(0.34*tangle*win(t,h[3],0.4),()=>stroke(link(h[0],h[1],hopBend(h)),{col:K.amber,w:1.5,dash:[3,6]}))});
   /* people on the phone with each other */
   (SC.lines||[]).forEach(L=>{const v=band(t,L.from,L.to,0.4);if(v>0)alphaDo(v,()=>{const l=link(L.a,L.b,L.bend||0);stroke(l,{col:K.amber,w:1.8,dash:[5,5]});const m=qpt(l.a,l.c,l.b,0.5);callIcon(m.x,m.y,0.12*Math.sin(t*12),K.amber)})});
   /* run B: the network fills as work moves; a connection appears the first time work crosses it and glows while it carries work */
-  if(net)EDGES.forEach(e=>{const g=easeOut(win(t,e.lit,0.45));if(g<=0)return;const l=link(e[0],e[1],bendOf(e[0],e[1])),h=heat(e,t);
+  if(net)EDGES.forEach(e=>{const g=easeOut(win(t,e.lit,0.45));if(g<=0)return;const ea=Math.min(vis(e[0],t),vis(e[1],t))*(1-win(t,e.to,0.4));if(ea<=0)return;
+    ctx.save();ctx.globalAlpha*=ea;const l=link(e[0],e[1],bendOf(e[0],e[1])),h=heat(e,t);
     if(e.out){stroke(l,{col:"rgba(93,104,120,.5)",w:1.8,dash:[4,5],frac:g});if(h>0)alphaDo(h,()=>stroke(l,{col:K.slate,w:2.4,dash:[4,5],frac:g}))}
-    else{stroke(l,{col:"rgba(74,106,158,.42)",w:2,frac:g});if(h>0)alphaDo(h,()=>stroke(l,{col:K.slate,w:3,frac:g,glow:true}))}});
+    else{stroke(l,{col:"rgba(74,106,158,.42)",w:2,frac:g});if(h>0)alphaDo(h,()=>stroke(l,{col:K.slate,w:3,frac:g,glow:true}))}ctx.restore()});
   Object.entries(G).forEach(([k,g])=>{if(!g.own)return;const amt=easeOut(win(t,g.from,0.5));if(amt>0)stroke(link(g.own,k,0),{col:"rgba(91,82,214,.6)",w:2,frac:amt})});
   /* the wave */
-  if(t>JOIN0&&t<JOIN0+2.1)for(let r=0;r<2;r++){const tt=t-JOIN0-r*0.28,p=tt/1.7;if(tt<=0||p>=1)continue;ctx.save();ctx.globalAlpha*=(r?0.2:0.42)*(1-p);ctx.strokeStyle=K.slate;ctx.lineWidth=r?2:3.2;ctx.beginPath();ctx.arc(JC.x,JC.y,tt*700,0,7);ctx.stroke();ctx.restore()}
+  if(WAVE&&t>JOIN0&&t<JOIN0+2.1)for(let r=0;r<2;r++){const tt=t-JOIN0-r*0.28,p=tt/1.7;if(tt<=0||p>=1)continue;ctx.save();ctx.globalAlpha*=(r?0.2:0.42)*(1-p);ctx.strokeStyle=K.slate;ctx.lineWidth=r?2:3.2;ctx.beginPath();ctx.arc(JC.x,JC.y,tt*700,0,7);ctx.stroke();ctx.restore()}
   /* apps */
   Object.entries(A).forEach(([k,a])=>{const amt=showAmt(k,t);if(amt<=0)return;const q=pop(amt);
-    alphaDo(q.a,()=>scaled(a.x,a.y,q.s,()=>appTile(a,a.outside?0:win(t,joinT(k),0.5))))});
+    alphaDo(q.a,()=>scaled(a.x,a.y,q.s,()=>appTile(a,a.outside?0:WAVE?win(t,joinT(k),0.5):1)))});
   /* people */
   Object.entries(P).forEach(([k,p])=>{const amt=showAmt(k,t);if(amt<=0)return;const q=pop(amt);
     let ring=0;DEC.who.forEach((w,j)=>{if(w===k)ring=Math.max(ring,band(t,DEC.a[j]-0.15,DEC.a[j]+1.9,0.3),band(t,DEC.b[j]-0.15,DEC.b[j]+1.9,0.3))});
     alphaDo(q.a,()=>{scaled(p.x,p.y,q.s,()=>avatar(p.x,p.y,p.r,p.spec,{ring,pulse:ring?2*Math.sin(t*5):0}));
       if(p.small){const w=tw(p.label,12,600)+16;plate(p.x,p.y-p.r-26,w,22);text(p.x,p.y-p.r-11,p.label,{size:12,w:600,col:K.muted})}
       else{const w=Math.max(tw(p.name,16,700),tw(p.role,12.5,500))+18;plate(p.x,p.y+p.r+6,w,42);text(p.x,p.y+p.r+24,p.name,{size:16,w:700});text(p.x,p.y+p.r+41,p.role,{size:12.5,w:500,col:K.muted})}
-      if(!p.outside){const pj=win(t,joinT(k),0.5);if(pj>0)port(p.x-p.r*0.72,p.y+p.r*0.72,back(pj))}})});
+      if(!p.outside){const pj=WAVE?win(t,joinT(k),0.5):1;if(pj>0)port(p.x-p.r*0.72,p.y+p.r*0.72,back(pj))}})});
   /* join pulses as the wave passes */
-  if(t>JOIN0&&t<JOIN0+2.4)[...Object.keys(P).filter(k=>!P[k].outside),...Object.keys(A).filter(k=>!A[k].outside)].forEach(k=>{const p=win(t,joinT(k),0.7);if(p<=0||p>=1)return;const n=pt(k);
+  if(WAVE&&t>JOIN0&&t<JOIN0+2.4)[...Object.keys(P).filter(k=>!P[k].outside),...Object.keys(A).filter(k=>!A[k].outside)].forEach(k=>{const p=win(t,joinT(k),0.7);if(p<=0||p>=1)return;const n=pt(k);
     ctx.save();ctx.globalAlpha*=0.55*(1-p);ctx.strokeStyle=K.slate;ctx.lineWidth=2;
     if(A[k])rrect(n.x-aw(k)/2-4-14*p,n.y-ah(k)/2-4-14*p,aw(k)+8+28*p,ah(k)+8+28*p,12+8*p);else{ctx.beginPath();ctx.arc(n.x,n.y,n.r+4+22*p,0,7)}ctx.stroke();ctx.restore()});
   /* agents */
-  Object.entries(G).forEach(([k,g],i)=>{const amt=win(t,g.from,0.55);if(amt<=0)return;const s=back(amt);
+  Object.entries(G).forEach(([k,g],i)=>{const amt=SHOW[k]?showAmt(k,t):win(t,g.from,0.55);if(amt<=0)return;const s=back(amt);
     if(g.kind==="private"){alphaDo(Math.min(1,amt*2),()=>{scaled(g.x,g.y,s,()=>agentBadge(g,g.r,K.agent,0.4));agentLabel(g)});return}
     ctx.save();ctx.globalAlpha*=Math.min(1,amt*2);ctx.translate(g.x,g.y);ctx.scale(s,s);ctx.translate(-g.x,-g.y);
     ctx.save();ctx.globalAlpha*=0.18;ctx.fillStyle=K.agent;ctx.beginPath();ctx.arc(g.x,g.y,g.r+10+3*Math.sin(t*2+i),0,7);ctx.fill();ctx.restore();
@@ -111,7 +118,7 @@ function draw(t){
   alphaDo(win(t,A0+0.2,0.4)*(1-win(t,A1-0.2,0.4)),()=>plainChip(SC.labels.chipA));
   alphaDo(win(t,CHIPB,0.3)*(1-win(t,PROOF0-0.2,0.5)),()=>aeolusChip(SC.labels.chipB));
   /* Aeolus is named the moment the network appears, then it moves to the corner */
-  if(t>MARK0&&t<CHIPB+0.45){const tc={x:chipGeom(SC.labels.chipB).cx,y:CHIP.y};const fl=ease(win(t,FLY0,0.75)),s=back(win(t,MARK0,0.6))*lerp(1,0.4,fl);
+  if(MARK_ON&&t>MARK0&&t<CHIPB+0.45){const tc={x:chipGeom(SC.labels.chipB).cx,y:CHIP.y};const fl=ease(win(t,FLY0,0.75)),s=back(win(t,MARK0,0.6))*lerp(1,0.4,fl);
     alphaDo(Math.min(1,win(t,MARK0,0.3)*2)*(1-win(t,CHIPB,0.3)),()=>aeolusMark(lerp(JC.x,tc.x,fl),lerp(JC.y,tc.y,fl),s))}
 }
 
@@ -120,10 +127,19 @@ const $=id=>document.getElementById(id);
 const capEl=$("cap"),capH=$("capH"),capS=$("capS"),endEl=$("end"),clockEl=$("clock"),clockK=$("clockK"),clockV=$("clockV"),cH=$("cH"),cS=$("cS"),cntEl=$("cnt"),proofEl=$("proof");
 const S=SC.captions;
 const fill=(id,s)=>{const el=$(id);if(el)el.textContent=s};
-fill("lblH",SC.labels.handoffs);fill("lblD",SC.labels.decisions);fill("of","of "+NDEC);
-fill("pT",SC.proof.title);fill("pA",SC.proof.colA);fill("pB",SC.proof.colB);fill("pD",SC.labels.decisions);fill("pH",SC.labels.handoffs);
-fill("pDA",NDEC);fill("pDB",NDEC);fill("pHA",HO_T.length);fill("pHB",0);
+/* counters: two rows, each counting its times in run A (a) and run B (b); by default hand-offs and decisions */
+const CNT=SC.counters||[{label:SC.labels.handoffs,a:HO_T,b:[]},{label:SC.labels.decisions,a:DEC.a,b:DEC.b,of:NDEC}];
+fill("lblH",CNT[0].label);fill("lblD",CNT[1].label);fill("of",CNT[1].of!=null?"of "+CNT[1].of:"");
+/* proof rows: by default decisions (N and N) and hand-offs (counted, then 0); ca and cb pick the colours g, h, a or "" */
+const PR=SC.proof.rows||[{label:SC.labels.decisions,a:NDEC,b:NDEC},{label:SC.labels.handoffs,a:HO_T.length,b:0}];
+fill("pT",SC.proof.title);fill("pA",SC.proof.colA);fill("pB",SC.proof.colB);fill("pD",PR[0].label);fill("pH",PR[1].label);
+fill("pDA",PR[0].a);fill("pDB",PR[0].b);fill("pHA",PR[1].a);fill("pHB",PR[1].b);
+[["pDA",PR[0].ca,1],["pDB",PR[0].cb,1],["pHA",PR[1].ca,2],["pHB",PR[1].cb,2]].forEach(([id,c,r])=>{if(c!=null)$(id).className=`pv ${c} pr${r}`});
 $("pF").innerHTML="";SC.proof.footer.forEach((l,i)=>{if(i)$("pF").append(document.createElement("br"));$("pF").append(l)});
+/* closing card: what to use it for and what not, from closing.from until the end card */
+const CL=SC.closing,closingEl=$("closing"),closingRows=[0,1,2,3].map(i=>document.querySelectorAll(".cr"+i));
+if(CL){fill("cT",CL.title);fill("cUT",CL.use.title);fill("cST",CL.skip.title);fill("cN",CL.note||"");
+  [["cU",CL.use.items],["cS2",CL.skip.items]].forEach(([id,items])=>items.forEach(s=>{const li=document.createElement("li");li.textContent=s;$(id).append(li)}))}
 fill("eW",SC.end.word);fill("eT",SC.end.tagline);fill("eU",SC.end.url);fill("eL",SC.end.label);
 const proofRows=[0,1,2,3].map(i=>document.querySelectorAll(".pr"+i));
 const chapEl=$("chapters");
@@ -139,12 +155,13 @@ function captions(t){
   capEl.style.opacity=s.h?Math.min(s.a===0?1:win(t,s.a+0.15,0.6),1-win(t,s.b-0.45,0.4)):0;
   const runA=t<A1+0.5;
   if(runA){let c=CLK_A[0];CLK_A.forEach(k=>{if(t>=k[0])c=k});clockK.textContent=c[1];clockV.textContent=c[2]}
-  else{clockK.textContent=SC.clockB.day;clockV.textContent=hm(storyMin(t))}
+  else{clockK.textContent=dayB(t);clockV.textContent=hm(storyMin(t))}
   clockEl.style.opacity=Math.max(1-win(t,A1-0.3,0.4),Math.min(win(t,B0-0.2,0.4),1-win(t,PROOF0-0.2,0.4)));
   cntEl.style.opacity=Math.max(Math.min(win(t,A0,0.4),1-win(t,A1-0.3,0.4)),Math.min(win(t,B0-0.2,0.4),1-win(t,PROOF0-0.2,0.4)));
-  const ho=runA?HO_T.filter(x=>x<=t).length:0,de=runA?DEC.a.filter(x=>x<=t).length:DEC.b.filter(x=>x<=t).length;
-  cH.textContent=ho;cS.textContent=de;bump(cH,t,runA?lastLE(HO_T,t):-9);bump(cS,t,lastLE(runA?DEC.a:DEC.b,t));
-  proofEl.style.opacity=win(t,PROOF0+0.2,0.6)*(1-win(t,END0-0.4,0.45));
+  const c0=runA?CNT[0].a:CNT[0].b,c1=runA?CNT[1].a:CNT[1].b;
+  cH.textContent=c0.filter(x=>x<=t).length;cS.textContent=c1.filter(x=>x<=t).length;bump(cH,t,lastLE(c0,t));bump(cS,t,lastLE(c1,t));
+  proofEl.style.opacity=win(t,PROOF0+0.2,0.6)*(1-win(t,(CL?CL.from:END0)-0.4,0.45));
+  if(CL){closingEl.style.opacity=win(t,CL.from+0.2,0.6)*(1-win(t,END0-0.4,0.45));CL.times.forEach((a,j)=>closingRows[j].forEach(el=>el.style.opacity=win(t,a,0.5)))}
   SC.proof.times.forEach((a,j)=>proofRows[j].forEach(el=>el.style.opacity=win(t,a,0.5)));
   endEl.style.opacity=win(t,END0+0.2,1.0);
 }

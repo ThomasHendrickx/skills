@@ -2,7 +2,7 @@
 Reads scenario.json and vo_timeline.json. Writes mix.wav, sound.wav (-16 LUFS, peak -1.7 dB) and sound.mp3 (for the page).
 The score follows the story: a hesitant minor bed while people carry the work, a riser and bloom when Aeolus appears,
 a light groove while the network carries it (holding its breath at the turn, thinning before the last decision),
-a breakdown under the proof card, a resolve on the end card. Every effect is derived from the scenario's hops,
+a breakdown under the proof card (and a closing card), a resolve on the end card. Every effect is derived from the scenario's hops,
 notes, tags, vignettes and decisions; decisions get their own chime in both runs."""
 import json, os, re, subprocess, sys
 import numpy as np, soundfile as sf
@@ -13,7 +13,7 @@ sc = json.load(open(os.path.join(wd, "scenario.json"), encoding="utf-8"))
 VO = json.load(open(os.path.join(wd, "vo_timeline.json")))
 TL = sc["timeline"]
 A0, A1, JOIN, B0, PROOF, END = TL["a0"], TL["a1"], TL["join"], TL["b0"], TL["proof"], TL["end"]
-MARK = TL.get("mark", A1 + 0.8)
+MARK = TL["mark"] if isinstance(TL.get("mark"), (int, float)) and not isinstance(TL.get("mark"), bool) else A1 + 0.8
 SND = sc.get("sound", {})
 SR = 48000
 DUR = TL["dur"] + 0.6
@@ -205,10 +205,12 @@ if susp:
     for k in range(4): drums.add(rim(0.5 + 0.15 * k), s1 - 0.5 + k * 0.125, 1.0)
     groove("A", s1, min(2.0, PSTART - s1), True, True, True)
     if PSTART - s1 > 2.25: cycle(["D", "G", "D", "A"], s1 + 2.0, PSTART, lambda t: (True, True, True))
-# the proof: a breakdown, room for the voice
+# the proof (and a closing card): a breakdown, room for the voice, resolving on Dmaj7
+slots = max(1, int(np.ceil((END - PSTART) / 4.0 - 1e-9)))
+breakdown = [("Gmaj7", "A6", "Bm7", "Em7")[i % 4] for i in range(slots - 1)] + ["Dmaj7"]
 t = PSTART
-for c in ("Gmaj7", "A6", "Dmaj7"):
-    d = min(4.0, END - t) if c != "Dmaj7" else END - t
+for i, c in enumerate(breakdown):
+    d = min(4.0, END - t) if i < len(breakdown) - 1 else END - t
     if d <= 0.2: break
     pad_chord(c, t, d, 0.75, 0.7, att=0.6); music.add(bass(ROOT[c] + 12, d - 0.1, 0.45), t, 1.0)
     for m in CH[c][1:3]:
@@ -222,6 +224,7 @@ for dt, m in ((0.1, 74), (0.6, 78), (1.1, 81), (1.6, 76), (4.1, 78), (4.6, 81), 
 
 # ---------- sound effects, derived from the scenario ----------
 X = {k: v["x"] for g in ("people", "apps", "agents") for k, v in sc[g].items()}
+X.update({k: v["x"] + v["w"] / 2 for k, v in sc.get("frames", {}).items()})
 pan_of = lambda k: float(np.clip((X.get(k, 640) - 640) / 640 * 0.75, -0.75, 0.75))
 outside = {k for k, v in sc["people"].items() if v.get("outside")}
 for h in sc["hops"]:
@@ -240,13 +243,17 @@ for h in sc["hops"]:
     elif kind == "spark": sfx.add(bip(1650, 0.9), t1, 1.0, pan_of(b))
     elif kind == "msg": sfx.add(ping(1975, 0.8), t1, 1.0, pan_of(b))
     elif kind == "mail": sfx.add(whoosh(max(0.4, t1 - t0), 700, 2400), t0, 0.55, mid); sfx.add(ping(1760, 0.75), t1, 1.0, pan_of(b))
+    elif kind == "doc": sfx.add(whoosh(max(0.4, t1 - t0), 700, 2400), t0, 0.5, mid); sfx.add(tock(), t1, 0.8, pan_of(b))
 for n in sc.get("notes", []):
     sfx.add(thock(), n["from"], 0.9, -0.45)
     if n.get("handoff"): sfx.add(tock(), n["handoff"], 0.95, -0.45)
-for k, g in sc["agents"].items(): sfx.add(bip(1900, 0.6), g["from"], 1.0, pan_of(k))
+for k, g in sc["agents"].items():
+    for t0 in [w[0] for w in sc.get("show", {}).get(k, [])] or [g["from"]]: sfx.add(bip(1900, 0.6), t0, 1.0, pan_of(k))
 for g in sc["tags"]:
     k = g.get("of")
     if g.get("sfx") == "urgent": sfx.add(bip(2050, 0.8), g["from"], 1.0, pan_of(k)); sfx.add(bip(2450, 0.6), g["from"] + 0.08, 1.0, pan_of(k))
+    if g.get("sfx") == "down": sfx.add(bip(1250, 0.8), g["from"], 1.0, pan_of(k)); sfx.add(bip(880, 0.8), g["from"] + 0.11, 1.0, pan_of(k))
+    if g.get("sfx") == "up": sfx.add(bip(1250, 0.8), g["from"], 1.0, pan_of(k)); sfx.add(bip(1760, 0.8), g["from"] + 0.11, 1.0, pan_of(k))
     if g.get("sfx") == "accept":
         for m, dt in ((79, 0.0), (83, 0.08), (86, 0.16)):
             s = bell(m, 0.55, 1.0); sfx.add(s, g["from"] + dt, 0.5, pan_of(k)); verb_send.add(s, g["from"] + dt, 0.3)
@@ -259,7 +266,14 @@ for v in sc.get("vignettes", []):
         for i in range(len(v.get("rows", []))): sfx.add(click(0.6), v["from"] + 0.3 + i * 0.45, 1.0, vp)
     if v["type"] == "approvalPhone": sfx.add(click(1.2), v["press"], 1.0, vp)
     if v["type"] == "voiceNote": sfx.add(bip(900, 1.0), v["from"], 1.0, vp); sfx.add(bip(700, 1.0), v["to"] - 0.2, 1.0, vp)
-D = sc["decisions"]
+    if v["type"] == "terminalCard":
+        sfx.add(pop(0.6), v["from"], 1.0, vp); t0, dur = v.get("typeAt", v["from"] + 0.3), v.get("typeDur", 1.6)
+        for i in range(int(dur / 0.07)): sfx.add(click(rng.uniform(0.35, 0.7)), t0 + i * 0.07 + rng.uniform(0, 0.02), 1.0, vp)
+    if v["type"] == "requestCard":
+        sfx.add(pop(0.7), v["from"], 1.0, vp)
+        if "change" in v: sfx.add(tock(), v["change"], 0.6, vp)
+        if "press" in v: sfx.add(click(1.2), v["press"], 1.0, vp)
+D = sc.get("decisions") or {"a": [], "b": [], "who": []}
 for times in (D["a"], D["b"]):
     for t0, k in zip(times, D["who"]):
         for m, dt in ((81, 0.0), (86, 0.07)):
@@ -267,6 +281,7 @@ for times in (D["a"], D["b"]):
 pt = sc["proof"]["times"]
 for t0 in pt[:3]: sfx.add(thock(), t0, 0.9)
 s = bell(81, 0.5, 1.2); sfx.add(s, pt[3], 0.35); verb_send.add(s, pt[3], 0.4)
+for t0 in (sc.get("closing") or {}).get("times", []): sfx.add(thock(), t0, 0.9)
 s = bell(86, 0.5, 1.4); sfx.add(s, END + 0.2, 0.4); verb_send.add(s, END + 0.2, 0.5)
 
 # ---------- reverb, voice, ducking, levels ----------

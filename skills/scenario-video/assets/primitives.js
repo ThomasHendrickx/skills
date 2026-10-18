@@ -61,7 +61,7 @@ function avatar(x,y,r,sp,o={}){
   ctx.restore();ctx.restore();
 }
 
-/* ---------- agents, apps, the Aeolus port ---------- */
+/* ---------- agents, apps (kind process: a plain process; kind fleet: the fleet), computers, the Aeolus port ---------- */
 function sparkle(x,y,s,c="#fff"){ctx.fillStyle=c;ctx.beginPath();ctx.moveTo(x,y-s);ctx.quadraticCurveTo(x,y,x+s,y);ctx.quadraticCurveTo(x,y,x,y+s);ctx.quadraticCurveTo(x,y,x-s,y);ctx.quadraticCurveTo(x,y,x,y-s);ctx.fill()}
 function agentBadge(g,r,c,glow){ctx.save();if(glow){ctx.shadowColor=K.agent;ctx.shadowBlur=18*glow}else shadow(true,8,2);
   ctx.fillStyle=c;ctx.beginPath();ctx.arc(g.x,g.y,r,0,7);ctx.fill();shadow(false);ctx.strokeStyle="#fff";ctx.lineWidth=r>16?3:2.5;ctx.stroke();sparkle(g.x,g.y,r*0.56);ctx.restore()}
@@ -79,8 +79,17 @@ function agentLabel(g){const r=agentLabelRect(g);
 function port(x,y,s){if(s<=0)return;ctx.save();ctx.translate(x,y);ctx.scale(s,s);ctx.fillStyle=K.slate;ctx.beginPath();ctx.arc(0,0,7,0,7);ctx.fill();ctx.strokeStyle="#fff";ctx.lineWidth=2.5;ctx.stroke();ctx.fillStyle="#fff";ctx.fillRect(-3,-1.2,6,2.4);ctx.restore()}
 function appTile(a,pj){const w=a.w||AW,h=a.h||AH;
   ctx.save();shadow(true,14,4);ctx.fillStyle=K.card;rrect(a.x-w/2,a.y-h/2,w,h,11);ctx.fill();shadow(false);ctx.strokeStyle=K.line;ctx.lineWidth=1;ctx.stroke();
-  ctx.fillStyle=a.outside?K.grey:K.app;rrect(a.x-w/2+12,a.y-9,18,18,5);ctx.fill();ctx.fillStyle="#fff";ctx.fillRect(a.x-w/2+16,a.y-4,10,2.2);ctx.fillRect(a.x-w/2+16,a.y+1,7,2.2);
+  const slate=a.kind==="process"||a.kind==="fleet";
+  ctx.fillStyle=a.outside?K.grey:slate?K.slate:K.app;rrect(a.x-w/2+12,a.y-9,18,18,5);ctx.fill();
+  if(a.kind==="process")promptGlyph(a.x-w/2+21,a.y,"#fff");else if(a.kind==="fleet")sailGlyph(a.x-w/2+21,a.y,"#fff");
+  else{ctx.fillStyle="#fff";ctx.fillRect(a.x-w/2+16,a.y-4,10,2.2);ctx.fillRect(a.x-w/2+16,a.y+1,7,2.2)}
   ctx.restore();if(pj>0)port(a.x+w/2,a.y,back(clamp(pj)));text(a.x-w/2+40,a.y+5,a.label,{size:14,w:600,col:K.ink,align:"left"})}
+
+/* a computer: a frame with its name and what it runs; its trierarch and sessions are drawn inside by the scenario */
+function frameBox(f){ctx.save();ctx.fillStyle="rgba(255,255,255,.62)";rrect(f.x,f.y,f.w,f.h,18);ctx.fill();ctx.strokeStyle=K.line;ctx.lineWidth=1.2;ctx.stroke();
+  ctx.fillStyle=K.line;ctx.fillRect(f.x+1,f.y+46,f.w-2,1);ctx.restore();
+  monitorGlyph(f.x+26,f.y+23,K.muted);text(f.x+44,f.y+28.5,f.label,{size:15,w:700,align:"left"});
+  if(f.sub)text(f.x+44+tw(f.label,15,700)+10,f.y+28.5,f.sub,{size:12.5,w:500,col:K.muted,align:"left"})}
 
 /* ---------- what travels: icons ---------- */
 function mailIcon(x,y,c=K.amber){ctx.save();ctx.translate(x,y);shadow(true,8,2);ctx.fillStyle="#fff";rrect(-14,-10,28,20,4);ctx.fill();shadow(false);ctx.strokeStyle=c;ctx.lineWidth=1.8;ctx.stroke();ctx.beginPath();ctx.moveTo(-13,-9);ctx.lineTo(0,1.5);ctx.lineTo(13,-9);ctx.stroke();ctx.restore()}
@@ -94,9 +103,14 @@ function vanGlyph(x,y,s,c){ctx.save();ctx.translate(x,y);ctx.scale(s,s);ctx.fill
 function ballGlyph(x,y,r){ctx.save();ctx.fillStyle="#fff";ctx.strokeStyle=K.ink;ctx.lineWidth=1.4;ctx.beginPath();ctx.arc(x,y,r,0,7);ctx.fill();ctx.stroke();ctx.fillStyle=K.ink;ctx.beginPath();
   for(let i=0;i<5;i++){const a=-Math.PI/2+i*2*Math.PI/5;ctx.lineTo(x+Math.cos(a)*r*0.42,y+Math.sin(a)*r*0.42)}ctx.fill();
   ctx.lineWidth=1;for(let i=0;i<5;i++){const a=-Math.PI/2+i*2*Math.PI/5;ctx.beginPath();ctx.moveTo(x+Math.cos(a)*r*0.42,y+Math.sin(a)*r*0.42);ctx.lineTo(x+Math.cos(a)*r*0.95,y+Math.sin(a)*r*0.95);ctx.stroke()}ctx.restore()}
+function folderGlyph(x,y,c){ctx.save();ctx.fillStyle=c;rrect(x-7,y-4,14,10,2);ctx.fill();rrect(x-7,y-6.5,6,4,1.5);ctx.fill();ctx.restore()}
+function lockGlyph(x,y,c){ctx.save();ctx.strokeStyle=c;ctx.lineWidth=1.8;ctx.beginPath();ctx.arc(x,y-2.5,3.6,Math.PI,0);ctx.stroke();ctx.fillStyle=c;rrect(x-5.5,y-2.5,11,8.5,2);ctx.fill();ctx.restore()}
+function promptGlyph(x,y,c){ctx.save();ctx.strokeStyle=c;ctx.lineWidth=2;ctx.lineCap="round";ctx.lineJoin="round";ctx.beginPath();ctx.moveTo(x-5,y-4);ctx.lineTo(x-1,y);ctx.lineTo(x-5,y+4);ctx.moveTo(x+1,y+4.5);ctx.lineTo(x+5.5,y+4.5);ctx.stroke();ctx.restore()}
+function sailGlyph(x,y,c){ctx.save();ctx.fillStyle=c;ctx.beginPath();ctx.moveTo(x+0.5,y-6);ctx.lineTo(x+0.5,y+2);ctx.lineTo(x-5,y+2);ctx.closePath();ctx.fill();ctx.beginPath();ctx.moveTo(x-6,y+3.5);ctx.lineTo(x+6,y+3.5);ctx.lineTo(x+4.5,y+6);ctx.lineTo(x-4.5,y+6);ctx.closePath();ctx.fill();ctx.restore()}
+function monitorGlyph(x,y,c){ctx.save();ctx.strokeStyle=c;ctx.lineWidth=1.6;rrect(x-8,y-6.5,16,11,2);ctx.stroke();ctx.beginPath();ctx.moveTo(x-4,y+8);ctx.lineTo(x+4,y+8);ctx.moveTo(x,y+4.5);ctx.lineTo(x,y+8);ctx.stroke();ctx.restore()}
 function crossGlyph(x,y,s,c){ctx.save();ctx.strokeStyle=c;ctx.lineWidth=2.4;ctx.lineCap="round";ctx.beginPath();ctx.moveTo(x-s,y-s);ctx.lineTo(x+s,y+s);ctx.moveTo(x+s,y-s);ctx.lineTo(x-s,y+s);ctx.stroke();ctx.restore()}
 
-/* ---------- tags: icon check|cross|clock|pencil|chat|spark|phone|dot|van|ball|msg|mail ---------- */
+/* ---------- tags: icon check|cross|clock|pencil|chat|spark|phone|dot|van|ball|msg|mail|folder|lock ---------- */
 const pillW=(s,o)=>tw(s,o.size||13,600)+(o.icon?42:26);
 function pill(x,y,s,o={}){const size=o.size||13,w=pillW(s,o),h=size+16,ic=o.ic?col(o.ic):null,oc=o.col?col(o.col):null,c=oc||K.ink;
   ctx.save();shadow(true,12,3);ctx.fillStyle=o.bg||K.card;rrect(x-w/2,y-h/2,w,h,h/2);ctx.fill();shadow(false);ctx.restore();
@@ -113,6 +127,8 @@ function pill(x,y,s,o={}){const size=o.size||13,w=pillW(s,o),h=size+16,ic=o.ic?c
   if(o.icon==="ball")ballGlyph(ix,y,7);
   if(o.icon==="msg")chatGlyph(ix,y+0.5,ic||K.slate);
   if(o.icon==="mail")mailGlyph(ix,y,ic||K.amber);
+  if(o.icon==="folder")folderGlyph(ix,y,ic||oc||K.slate);
+  if(o.icon==="lock")lockGlyph(ix,y,ic||oc||K.slate);
   text(x+(o.icon?8:0),y+size*0.35+0.5,s,{size,w:600,col:c})}
 function numBadge(x,y,n,s=1){ctx.save();ctx.translate(x,y);ctx.scale(s,s);ctx.fillStyle=K.gate;ctx.beginPath();ctx.arc(0,0,12,0,7);ctx.fill();ctx.strokeStyle="#fff";ctx.lineWidth=2.5;ctx.stroke();ctx.restore();if(s>0.3)text(x,y+4.5,String(n),{size:13*s,w:700,col:"#fff"})}
 
@@ -173,7 +189,29 @@ function quoteCard(x,y,t,v){const w=280,h=196,R=x+w-16;cardBox(x,y,w,h);
   const press=win(t,v.press,0.4),done=win(t,v.press+0.4,0.3),by=y+h-38,bl=v.button||"Send",bw=tw(bl,13,600)+30;
   alphaDo(done,()=>donePill(R,by+13,v.done||"Sent"));
   alphaDo(1-done,()=>btn(R-bw,by,bw,bl,true,press))}
-const VIGNETTES={chatCard,phoneCard,approvalPhone,voiceNote,quoteCard};
+/* a terminal with one line typed out from v.typeAt (default from + 0.3) over v.typeDur; v.hl [from,to] marks a part of it (a secret) in orange */
+function terminalCard(x,y,t,v){const w=v.w||520,h=72,line=v.line||"",start=v.typeAt??v.from+0.3;
+  ctx.save();shadow(true,24,8,"rgba(24,33,45,.22)");ctx.fillStyle="#1b2330";rrect(x,y,w,h,12);ctx.fill();shadow(false);ctx.restore();
+  [K.gate,K.amber,K.app].forEach((c,i)=>{ctx.save();ctx.fillStyle=c;ctx.beginPath();ctx.arc(x+18+i*13,y+16,4,0,7);ctx.fill();ctx.restore()});
+  if(v.title)text(x+w/2,y+20,v.title,{size:11.5,w:500,col:"#8f9bad"});
+  const n=Math.floor(clamp((t-start)/(v.typeDur||1.6))*line.length),pr=(v.prompt||"$")+" ";
+  ctx.save();ctx.font=`500 13px ${MFONT}`;ctx.textAlign="left";ctx.textBaseline="alphabetic";const cw=ctx.measureText("m").width,by=y+50;
+  ctx.fillStyle=K.app;ctx.fillText(pr,x+16,by);const x0=x+16+ctx.measureText(pr).width,[a,b]=v.hl||[-1,-1];
+  for(let i=0;i<n;i++){const hot=i>=a&&i<b;ctx.fillStyle=hot?"#ff8a5c":"#e6ebf2";ctx.fillText(line[i],x0+i*cw,by)}
+  if(a>=0&&n>a){ctx.fillStyle="#ff8a5c";ctx.fillRect(x0+a*cw,by+4,(Math.min(n,b)-a)*cw,1.6)}
+  if(n<line.length||Math.floor(t*2)%2===0){ctx.fillStyle="#e6ebf2";ctx.fillRect(x0+n*cw+1,by-11,7,14)}
+  ctx.restore()}
+/* a crew request: rows of settings, a status that changes at v.change, and an optional button pressed at v.press */
+function requestCard(x,y,t,v){const rows=v.rows||[],w=v.w||270,h=64+rows.length*23+42,R=x+w-16;cardBox(x,y,w,h);
+  sailGlyph(x+24,y+24,K.slate);text(x+38,y+28.5,v.title,{size:12.5,w:600,col:K.muted,align:"left"});
+  rows.forEach((r,i)=>{const yy=y+58+i*23;text(x+16,yy,r[0],{size:12,w:500,col:K.muted,align:"left"});text(R,yy,r[1],{size:13.5,w:600,align:"right"})});
+  ctx.save();ctx.fillStyle=K.line;ctx.fillRect(x+16,y+h-46,w-32,1);ctx.restore();
+  const st=v.status||["Unassigned"],ch=ease(win(t,v.change??1e9,0.4)),sy=y+h-22;
+  alphaDo(1-ch,()=>pill(x+16+pillW(st[0],{icon:"dot",size:12})/2,sy,st[0],{icon:"dot",size:12,ic:v.ic0||"muted",col:"ink"}));
+  if(st[1])alphaDo(ch,()=>pill(x+16+pillW(st[1],{icon:"dot",size:12})/2,sy,st[1],{icon:"dot",size:12,ic:v.ic1||"app",col:"ink"}));
+  if(v.button){const press=win(t,v.press,0.4),done=win(t,v.press+0.4,0.3),bw=tw(v.button,13,600)+30;
+    alphaDo(done,()=>donePill(R,sy,v.done||"Done"));alphaDo(1-done,()=>btn(R-bw,sy-13.5,bw,v.button,true,press))}}
+const VIGNETTES={chatCard,phoneCard,approvalPhone,voiceNote,quoteCard,terminalCard,requestCard};
 
 /* ---------- the Aeolus mark and the corner chip ---------- */
 function boat(x,y,s){ctx.save();ctx.translate(x,y);ctx.scale(s,s);ctx.translate(-32,-28);
