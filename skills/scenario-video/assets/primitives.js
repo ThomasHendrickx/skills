@@ -211,7 +211,17 @@ function requestCard(x,y,t,v){const rows=v.rows||[],w=v.w||270,h=64+rows.length*
   if(st[1])alphaDo(ch,()=>pill(x+16+pillW(st[1],{icon:"dot",size:12})/2,sy,st[1],{icon:"dot",size:12,ic:v.ic1||"app",col:"ink"}));
   if(v.button){const press=win(t,v.press,0.4),done=win(t,v.press+0.4,0.3),bw=tw(v.button,13,600)+30;
     alphaDo(done,()=>donePill(R,sy,v.done||"Done"));alphaDo(1-done,()=>btn(R-bw,sy-13.5,bw,v.button,true,press))}}
-const VIGNETTES={chatCard,phoneCard,approvalPhone,voiceNote,quoteCard,terminalCard,requestCard};
+/* a file in git: its path, its version tag, and a few lines of it (YAML keys in slate) */
+function fileCard(x,y,t,v){const lines=v.lines||[],w=v.w||400,h=56+lines.length*19+12;cardBox(x,y,w,h);
+  ctx.save();ctx.strokeStyle=K.muted;ctx.lineWidth=1.4;ctx.beginPath();ctx.moveTo(x+18,y+16);ctx.lineTo(x+26,y+16);ctx.lineTo(x+30,y+20);ctx.lineTo(x+30,y+31);ctx.lineTo(x+18,y+31);ctx.closePath();ctx.stroke();ctx.restore();
+  text(x+40,y+28.5,v.title,{size:12.5,w:600,col:K.muted,align:"left"});
+  if(v.tag)pill(x+w-16-pillW(v.tag,{size:12})/2,y+24,v.tag,{size:12,col:"slate"});
+  ctx.save();ctx.fillStyle=K.line;ctx.fillRect(x+16,y+44,w-32,1);ctx.font=`500 12.5px ${MFONT}`;ctx.textAlign="left";ctx.textBaseline="alphabetic";
+  lines.forEach((l,i)=>{const yy=y+68+i*19,m=l.match(/^(\s*)([^:]+:)(.*)$/);
+    if(m){ctx.fillStyle=K.slate;ctx.fillText(m[1]+m[2],x+18,yy);const kw=ctx.measureText(m[1]+m[2]).width;ctx.fillStyle=K.ink;ctx.fillText(m[3],x+18+kw,yy)}
+    else{ctx.fillStyle=K.ink;ctx.fillText(l,x+18,yy)}});
+  ctx.restore()}
+const VIGNETTES={chatCard,phoneCard,approvalPhone,voiceNote,quoteCard,terminalCard,requestCard,fileCard};
 
 /* ---------- the Aeolus mark and the corner chip ---------- */
 function boat(x,y,s){ctx.save();ctx.translate(x,y);ctx.scale(s,s);ctx.translate(-32,-28);
