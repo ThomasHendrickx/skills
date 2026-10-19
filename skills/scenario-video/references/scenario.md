@@ -59,7 +59,7 @@ Keep a template's times and caption group names unless the story cannot fit; the
 
 `apps`: key to {`x`, `y`, `label`}, 142x42 by default (`w`, `h` to change). `outside: true`: a grey tile that never joins the network (a supplier's system). `kind`: "process" (a plain process such as a trierarch: a slate tile with a prompt) or "fleet" (the fleet: a slate tile with the sail).
 
-`frames`: key to {`x`, `y`, `w`, `h`, `label`, `sub`}: a computer, drawn under everything with its name and what it runs. Hops and tags may name a frame; it is never an obstacle.
+`frames`: key to {`x`, `y`, `w`, `h`, `label`, `sub`, `glyph`}: a computer, or a tool when the story is about tools, drawn under everything with its name and what it runs; `glyph` is `chat` or `prompt` for a tool (default: a monitor). Hops and tags may name a frame; it is never an obstacle.
 
 `agents`: key to {`x`, `y`, `r` (21; 13 when private), `label`, `lab` (right, left, above, below: where the label sits), `from` (when it appears)}. `own`: the person it works for, drawn as a link. `kind: "private"`: a person's own assistant, a small badge with its label below.
 
