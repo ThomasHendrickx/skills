@@ -105,6 +105,7 @@ Keep a template's times and caption group names unless the story cannot fit; the
 - `voiceNote` (140x38, recording): `len` ("0:20").
 - `quoteCard` (280x196, a draft with line items): `title`, `lines` [[label, value]] or [[label, old, new]] (up to 2), `note`, `total` [old, new], `totalLabel` ("Total"), `change` (when new values replace old), `press`, `button` ("Send"), `done` ("Sent").
 - `terminalCard` (`w`x72, a terminal): `title`, `line` typed out from `typeAt` (default `from`+0.3) over `typeDur`, `hl` [from, to] characters shown in orange (a secret), `prompt` ("$").
+- `fileCard` (`w`x(68 + 19 per line), a file in git): `title` (its path), `tag` (its version tag, `tester@1`), `lines` (a few lines of it; `key:` shows in slate).
 - `requestCard` (270 wide, a crew request): `title`, `rows` [[label, value]], `status` [before, after] with dot colours `ic0`, `ic1`, `change` (when after replaces before), and an optional `button` pressed at `press`, then `done`.
 
 `captions`: [{`a`, `b`, `g`, `h`, `s`}]: one per scene. `g` groups scenes into the chapter buttons under the video, `h` is the headline, `s` a subline (intro only). The proof, closing and end scenes have `h` "".
