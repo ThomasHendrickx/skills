@@ -74,7 +74,7 @@ function drawWorld(t){
       else{const w=Math.max(tw(p.name,16,700),tw(p.role,12.5,500))+18;plate(p.x,p.y+p.r+6,w,42);text(p.x,p.y+p.r+24,p.name,{size:16,w:700});text(p.x,p.y+p.r+41,p.role,{size:12.5,w:500,col:K.muted})}
       if(!p.outside){const pj=WAVE?win(t,joinT(k),0.5):1;if(pj>0)port(p.x-p.r*0.72,p.y+p.r*0.72,back(pj))}})});
   /* join pulses as the wave passes */
-  if(WAVE&&t>JOIN0&&t<JOIN0+2.4)[...Object.keys(P).filter(k=>!P[k].outside),...Object.keys(A).filter(k=>!A[k].outside)].forEach(k=>{const p=win(t,joinT(k),0.7);if(p<=0||p>=1)return;const n=pt(k);
+  if(WAVE&&t>JOIN0&&t<JOIN0+2.4)[...Object.keys(P).filter(k=>!P[k].outside),...Object.keys(A).filter(k=>!A[k].outside)].forEach(k=>{const p=win(t,joinT(k),0.7);if(p<=0||p>=1||showAmt(k,t)<=0)return;const n=pt(k);
     ctx.save();ctx.globalAlpha*=0.55*(1-p);ctx.strokeStyle=K.slate;ctx.lineWidth=2;
     if(A[k])rrect(n.x-aw(k)/2-4-14*p,n.y-ah(k)/2-4-14*p,aw(k)+8+28*p,ah(k)+8+28*p,12+8*p);else{ctx.beginPath();ctx.arc(n.x,n.y,n.r+4+22*p,0,7)}ctx.stroke();ctx.restore()});
   /* agents */
