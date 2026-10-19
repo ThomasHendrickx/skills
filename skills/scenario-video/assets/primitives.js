@@ -88,7 +88,7 @@ function appTile(a,pj){const w=a.w||AW,h=a.h||AH;
 /* a computer: a frame with its name and what it runs; its trierarch and sessions are drawn inside by the scenario */
 function frameBox(f){ctx.save();ctx.fillStyle="rgba(255,255,255,.62)";rrect(f.x,f.y,f.w,f.h,18);ctx.fill();ctx.strokeStyle=K.line;ctx.lineWidth=1.2;ctx.stroke();
   ctx.fillStyle=K.line;ctx.fillRect(f.x+1,f.y+46,f.w-2,1);ctx.restore();
-  monitorGlyph(f.x+26,f.y+23,K.muted);text(f.x+44,f.y+28.5,f.label,{size:15,w:700,align:"left"});
+  (f.glyph==="chat"?chatGlyph:f.glyph==="prompt"?promptGlyph:monitorGlyph)(f.x+26,f.y+23,K.muted);text(f.x+44,f.y+28.5,f.label,{size:15,w:700,align:"left"});
   if(f.sub)text(f.x+44+tw(f.label,15,700)+10,f.y+28.5,f.sub,{size:12.5,w:500,col:K.muted,align:"left"})}
 
 /* ---------- what travels: icons ---------- */
