@@ -14,6 +14,7 @@ This installs into `.agents/skills/` (read by Codex) and links each skill into `
 
 ## Skills
 
+- `software-development`: small incremental commits.
 - `test-driven-development`: red-green-refactor, commit evidence, test layers and rules.
 - `typescript`: types, errors, validation, naming.
 - `domain-modelling`: ports and adapters, invariants, use cases, events.
