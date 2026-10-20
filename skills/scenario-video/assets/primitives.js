@@ -221,7 +221,32 @@ function fileCard(x,y,t,v){const lines=v.lines||[],w=v.w||400,h=56+lines.length*
     if(m){ctx.fillStyle=K.slate;ctx.fillText(m[1]+m[2],x+18,yy);const kw=ctx.measureText(m[1]+m[2]).width;ctx.fillStyle=K.ink;ctx.fillText(m[3],x+18+kw,yy)}
     else{ctx.fillStyle=K.ink;ctx.fillText(l,x+18,yy)}});
   ctx.restore()}
-const VIGNETTES={chatCard,phoneCard,approvalPhone,voiceNote,quoteCard,terminalCard,requestCard,fileCard};
+/* a team chat thread: messages [{at, who, text (a string or two lines), col}] appear at their time; v.typing {who, from, to} shows "who is typing" in the next empty slot */
+function chatThread(x,y,t,v){const msgs=v.msgs||[],w=v.w||380,rh=m=>(Array.isArray(m.text)?m.text.length:1)*18+28,slot=[];let acc=y+66;
+  msgs.forEach(m=>{slot.push(acc);acc+=rh(m)});cardBox(x,y,w,acc-y+4);
+  chatGlyph(x+24,y+24);text(x+40,y+28.5,v.title,{size:12.5,w:600,col:K.muted,align:"left"});
+  ctx.save();ctx.fillStyle=K.line;ctx.fillRect(x+16,y+44,w-32,1);ctx.restore();
+  msgs.forEach((m,i)=>{const a=win(t,m.at,0.3);if(a<=0)return;alphaDo(a,()=>{const yy=slot[i]+5*(1-a);
+    text(x+16,yy,m.who,{size:12,w:700,col:m.col?col(m.col):K.ink,align:"left"});
+    (Array.isArray(m.text)?m.text:[m.text]).forEach((l,j)=>text(x+16,yy+19+j*18,l,{size:13.5,w:500,align:"left"}))})});
+  const ty=v.typing;if(!ty)return;const a=band(t,ty.from,ty.to,0.2);if(a<=0)return;let i=msgs.findIndex(m=>m.at>=ty.to-0.05);if(i<0)i=msgs.length-1;
+  alphaDo(a,()=>{const yy=slot[i],s=ty.who+" is typing";text(x+16,yy,s,{size:12,w:600,col:K.muted,align:"left"});
+    const dx=x+16+tw(s,12,600)+9;for(let d=0;d<3;d++){const p=0.5+0.5*Math.sin(t*9-d*0.9);ctx.save();ctx.globalAlpha*=0.35+0.65*p;ctx.fillStyle=K.muted;ctx.beginPath();ctx.arc(dx+d*8,yy-4,2.4,0,7);ctx.fill();ctx.restore()}})}
+/* a card on the backlog: rows [label, value] or [label, old, new, colour] where new replaces old at v.change (an empty old just appears), and a status [before, after] that changes at v.statusAt (default v.change) */
+function ticketGlyph(x,y,c){ctx.save();ctx.strokeStyle=c;ctx.lineWidth=1.6;rrect(x-7.5,y-6.5,15,13,2.5);ctx.stroke();ctx.fillStyle=c;ctx.fillRect(x-4,y-2.6,8,1.8);ctx.fillRect(x-4,y+1.2,5,1.8);ctx.restore()}
+function ticketCard(x,y,t,v){const rows=v.rows||[],w=v.w||330,h=64+rows.length*23+42,R=x+w-16;cardBox(x,y,w,h);
+  ticketGlyph(x+24,y+24,K.slate);text(x+40,y+28.5,v.title,{size:12.5,w:600,col:K.muted,align:"left"});
+  const ch=ease(win(t,v.change??1e9,0.45));
+  rows.forEach((r,i)=>{const yy=y+58+i*23;text(x+16,yy,r[0],{size:12,w:500,col:K.muted,align:"left"});
+    if(r.length<3){text(R,yy,r[1],{size:13.5,w:600,align:"right"});return}
+    if(r[1])alphaDo(1-0.45*ch,()=>{const ox=R-(tw(r[2],13.5,700)+14)*ch;text(ox,yy,r[1],{size:13.5,w:600,col:ch>0?K.muted:K.ink,align:"right"});
+      if(ch>0){const ww=tw(r[1],13.5,600);ctx.save();ctx.strokeStyle=K.gate;ctx.lineWidth=1.8;ctx.beginPath();ctx.moveTo(ox-ww-2,yy-5);ctx.lineTo(ox-ww-2+(ww+4)*ch,yy-5);ctx.stroke();ctx.restore()}});
+    alphaDo(ch,()=>text(R,yy,r[2],{size:13.5,w:700,col:col(r[3]||"ink"),align:"right"}))});
+  ctx.save();ctx.fillStyle=K.line;ctx.fillRect(x+16,y+h-46,w-32,1);ctx.restore();
+  const st=v.status||["To do"],sy=y+h-22,sc=ease(win(t,v.statusAt??v.change??1e9,0.4));
+  alphaDo(1-sc,()=>pill(x+16+pillW(st[0],{icon:"dot",size:12})/2,sy,st[0],{icon:"dot",size:12,ic:v.ic0||"muted",col:"ink"}));
+  if(st[1])alphaDo(sc,()=>pill(x+16+pillW(st[1],{icon:"dot",size:12})/2,sy,st[1],{icon:"dot",size:12,ic:v.ic1||"app",col:"ink"}))}
+const VIGNETTES={chatCard,phoneCard,approvalPhone,voiceNote,quoteCard,terminalCard,requestCard,fileCard,chatThread,ticketCard};
 
 /* ---------- the Aeolus mark and the corner chip ---------- */
 function boat(x,y,s){ctx.save();ctx.translate(x,y);ctx.scale(s,s);ctx.translate(-32,-28);

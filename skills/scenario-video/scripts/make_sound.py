@@ -270,6 +270,14 @@ for v in sc.get("vignettes", []):
         sfx.add(pop(0.6), v["from"], 1.0, vp); t0, dur = v.get("typeAt", v["from"] + 0.3), v.get("typeDur", 1.6)
         for i in range(int(dur / 0.07)): sfx.add(click(rng.uniform(0.35, 0.7)), t0 + i * 0.07 + rng.uniform(0, 0.02), 1.0, vp)
     if v["type"] == "fileCard": sfx.add(pop(0.6), v["from"], 1.0, vp)
+    if v["type"] == "chatThread":
+        sfx.add(pop(0.6), v["from"], 1.0, vp)
+        for m in v.get("msgs", []):
+            if m["at"] - v["from"] > 0.2: sfx.add(pop(0.45), m["at"], 1.0, vp)
+    if v["type"] == "ticketCard":
+        sfx.add(pop(0.7), v["from"], 1.0, vp)
+        if "change" in v: sfx.add(tock(), v["change"], 0.6, vp)
+        if "statusAt" in v and v["statusAt"] != v.get("change"): sfx.add(tock(), v["statusAt"], 0.5, vp)
     if v["type"] == "requestCard":
         sfx.add(pop(0.7), v["from"], 1.0, vp)
         if "change" in v: sfx.add(tock(), v["change"], 0.6, vp)
