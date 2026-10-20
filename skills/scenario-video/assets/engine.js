@@ -25,7 +25,7 @@ const EB=SC.edges,ebend=k=>{const v=EB[k];return v==null?null:typeof v==="object
 const bendOf=(a,b)=>ebend(a+">"+b)??(ebend(b+">"+a)!=null?-ebend(b+">"+a):null);
 const vis=(k,t)=>G[k]?(SHOW[k]?showAmt(k,t):win(t,G[k].from,0.55)):showAmt(k,t);
 const hopBend=h=>(h[2]>=NET0?bendOf(h[0],h[1]):null)??h[5]??0;
-const EDGES=Object.keys(EB).map(k=>{const [a,b]=k.split(">"),v=EB[k],e=[a,b];e.out=isOut(a)||isOut(b);e.from=(typeof v==="object"&&v.from)||-1;e.to=(typeof v==="object"&&v.to)||1e9;
+const EDGES=Object.keys(EB).map(k=>{const [a,b]=k.split(">"),v=EB[k],e=[a,b];e.out=isOut(a)||isOut(b);e.from=(typeof v==="object"&&v.from)||-1;e.to=(typeof v==="object"&&v.to)||1e9;e.label=typeof v==="object"?v.label:null;
   e.uses=HOPS.filter(h=>h[2]>=Math.max(NET0,e.from)&&h[2]<=e.to&&((h[0]===a&&h[1]===b)||(h[0]===b&&h[1]===a))).map(h=>[h[2],h[3]]);e.lit=e.uses.length?e.uses[0][0]-0.2:99;return e});
 const heat=(e,t)=>{let m=0;e.uses.forEach(([a,b])=>{m=Math.max(m,band(t,a-0.25,b+1.3,0.3))});return m};
 /* story clocks */
@@ -59,7 +59,9 @@ function drawWorld(t){
   if(net)EDGES.forEach(e=>{const g=easeOut(win(t,e.lit,0.45));if(g<=0)return;const ea=Math.min(vis(e[0],t),vis(e[1],t))*(1-win(t,e.to,0.4));if(ea<=0)return;
     ctx.save();ctx.globalAlpha*=ea;const l=link(e[0],e[1],bendOf(e[0],e[1])),h=heat(e,t);
     if(e.out){stroke(l,{col:"rgba(93,104,120,.5)",w:1.8,dash:[4,5],frac:g});if(h>0)alphaDo(h,()=>stroke(l,{col:K.slate,w:2.4,dash:[4,5],frac:g}))}
-    else{stroke(l,{col:"rgba(74,106,158,.42)",w:2,frac:g});if(h>0)alphaDo(h,()=>stroke(l,{col:K.slate,w:3,frac:g,glow:true}))}ctx.restore()});
+    else{stroke(l,{col:"rgba(74,106,158,.42)",w:2,frac:g});if(h>0)alphaDo(h,()=>stroke(l,{col:K.slate,w:3,frac:g,glow:true}))}
+    if(e.label&&g>0.6)alphaDo((g-0.6)/0.4,()=>{const mx=.25*l.a.x+.5*l.c.x+.25*l.b.x,my=.25*l.a.y+.5*l.c.y+.25*l.b.y,w=tw(e.label,10.5,700)+14;
+      ctx.save();ctx.fillStyle=K.card;rrect(mx-w/2,my-9,w,18,9);ctx.fill();ctx.strokeStyle=K.line;ctx.lineWidth=1;ctx.stroke();ctx.restore();text(mx,my+3.8,e.label,{size:10.5,w:700,col:K.slate})});ctx.restore()});
   Object.entries(G).forEach(([k,g])=>{if(!g.own)return;const amt=easeOut(win(t,g.from,0.5)),on=SHOW[k]?showAmt(k,t):1;if(amt>0&&on>0)alphaDo(on,()=>stroke(link(g.own,k,0),{col:"rgba(91,82,214,.6)",w:2,frac:amt}))});
   /* the wave */
   if(WAVE&&t>JOIN0&&t<JOIN0+2.1)for(let r=0;r<2;r++){const tt=t-JOIN0-r*0.28,p=tt/1.7;if(tt<=0||p>=1)continue;ctx.save();ctx.globalAlpha*=(r?0.2:0.42)*(1-p);ctx.strokeStyle=K.slate;ctx.lineWidth=r?2:3.2;ctx.beginPath();ctx.arc(JC.x,JC.y,tt*700,0,7);ctx.stroke();ctx.restore()}
