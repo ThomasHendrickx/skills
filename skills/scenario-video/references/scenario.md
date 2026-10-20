@@ -88,7 +88,7 @@ Keep a template's times and caption group names unless the story cannot fit; the
 - `handoff`: 1 on a run A step a person carried (needs a `bend` before it). It counts in "Hand-offs by people" and leaves an amber trace until run A ends. The proof's hand-off number is these plus note hand-offs; the voice says the same number.
 - Run A hops last 0.5 to 1 s; run B hops 0.4 to 0.6 s, chained.
 
-`edges`: {"a>b": bend, or {`bend`, `from`, `to`} for a connection that exists only then}: the network's connections. A connection appears the first time a hop crosses it (either direction) after `netFrom`, glows while it carries work, and fades while either end is off stage; connections to outside keys are dashed. Give every hop on the network an edge, except between an agent and its `own` person.
+`edges`: {"a>b": bend, or {`bend`, `from`, `to`, `label`} for a connection that exists only then, or carries a word such as "MCP" at its middle}: the network's connections. A connection appears the first time a hop crosses it (either direction) after `netFrom`, glows while it carries work, and fades while either end is off stage; connections to outside keys are dashed. Give every hop on the network an edge, except between an agent and its `own` person.
 
 `tags`: [{`from`, `to`, `text`, `at`, `of`, `dx`, `dy`, `icon`, `col`, `ic`, `size`, `sfx`}]: short pills.
 - `at`: right, left, above, below (`dy` 22 by default) a person or agent; `app`: above an app tile or frame; `agent`: above an agent. Without `at`: centred at `x`, `y`.
