@@ -60,7 +60,7 @@ function drawWorld(t){
     ctx.save();ctx.globalAlpha*=ea;const l=link(e[0],e[1],bendOf(e[0],e[1])),h=heat(e,t);
     if(e.out){stroke(l,{col:"rgba(93,104,120,.5)",w:1.8,dash:[4,5],frac:g});if(h>0)alphaDo(h,()=>stroke(l,{col:K.slate,w:2.4,dash:[4,5],frac:g}))}
     else{stroke(l,{col:"rgba(74,106,158,.42)",w:2,frac:g});if(h>0)alphaDo(h,()=>stroke(l,{col:K.slate,w:3,frac:g,glow:true}))}ctx.restore()});
-  Object.entries(G).forEach(([k,g])=>{if(!g.own)return;const amt=easeOut(win(t,g.from,0.5));if(amt>0)stroke(link(g.own,k,0),{col:"rgba(91,82,214,.6)",w:2,frac:amt})});
+  Object.entries(G).forEach(([k,g])=>{if(!g.own)return;const amt=easeOut(win(t,g.from,0.5)),on=SHOW[k]?showAmt(k,t):1;if(amt>0&&on>0)alphaDo(on,()=>stroke(link(g.own,k,0),{col:"rgba(91,82,214,.6)",w:2,frac:amt}))});
   /* the wave */
   if(WAVE&&t>JOIN0&&t<JOIN0+2.1)for(let r=0;r<2;r++){const tt=t-JOIN0-r*0.28,p=tt/1.7;if(tt<=0||p>=1)continue;ctx.save();ctx.globalAlpha*=(r?0.2:0.42)*(1-p);ctx.strokeStyle=K.slate;ctx.lineWidth=r?2:3.2;ctx.beginPath();ctx.arc(JC.x,JC.y,tt*700,0,7);ctx.stroke();ctx.restore()}
   /* apps */
