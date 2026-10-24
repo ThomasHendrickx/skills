@@ -19,7 +19,7 @@ This installs into `.agents/skills/` (read by Codex) and links each skill into `
 - `typescript`: types, errors, validation, naming.
 - `domain-modelling`: ports and adapters, invariants, use cases, events.
 - `web-frontend`: feature structure, state, React rules.
-- `performance`: scale targets, API design, the toolbelt, proof at scale, UI states.
+- `performance`: scale targets and budget, API design, the toolbelt, live updates, proof at scale, UI states.
 - `code-review`: acceptance criteria and standards as two independent axes.
 - `pull-request`: the shape of a pull request body.
 - `writing-for-agents`: skills, CLAUDE.md and other docs agents read.
