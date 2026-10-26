@@ -16,6 +16,7 @@ This installs into `.agents/skills/` (read by Codex) and links each skill into `
 
 - `software-development`: small incremental commits, sub-agent models.
 - `test-driven-development`: red-green-refactor, commit evidence, test layers and rules.
+- `behaviour-driven-development`: tests only from approved scenarios and guarantees, outside in; replaces `test-driven-development` in a repo that adopts it.
 - `typescript`: types, errors, validation, naming.
 - `domain-modelling`: ports and adapters, invariants, use cases, events.
 - `web-frontend`: feature structure, state, React rules.
