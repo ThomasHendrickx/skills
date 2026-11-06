@@ -18,7 +18,7 @@ Evidence per run is in `transcripts/<form>-<run>.{prompt.md,md,diff}`: the exact
 
 ## Notes
 
-- S3.1 SKILL.md FAIL is reported as it happened. The agent's report says it replaced every `find_by` caller, including `stale_draft_numbers`, then deleted `find_by` "since no caller remained". P3's "touched code only" line is not in the spec'd SKILL.md body any more (it is the P3 heading's scope in the spec's own text), and the skill was not changed in response.
+- S3.1 SKILL.md FAIL is reported as it happened. The agent's report says it replaced every `find_by` caller, including `stale_draft_numbers`, then deleted `find_by` "since no caller remained". The skill (P3: "touched code only") was not changed in response.
 - S0.2: the SKILL.md agent also reported problem 3; the AIP agent reported 2, 3 and 4. The scenario requires 4 present, so both pass.
 - S1.2 AIP: the harness counted `PlaceOrderTest` as a class that ran a duplicate-number case besides the two adapter classes; the in-memory and sqlite classes are both present, so the verdict stands.
 - Neither form of the `order` run built a read model for the staff list (both said so in their reports); the list returns whole orders. Not scored.
