@@ -2,7 +2,7 @@
 
 `ORIGINAL_SKILL.md` is `../../SKILL.md` verbatim: the source of truth this AIP skill is compiled from. `evals/check_aip.py` verifies the identity.
 
-Compiled following the `aip` compiler skill from [zach-blumenfeld/aip](https://github.com/zach-blumenfeld/aip), tag `v0.3a3`, commit `2c20a02fe2b6c34eb98476853865a6b07946dc62`, the version used by aip-skillbench. The schema is that tag's `assets/aip-schemas/procedure.schema.json`, copied unchanged as `procedure.schema.json`. Validation output is committed in `../../evals/results/validate-aip.txt`; count-check output is `../../evals/results/check-aip.txt`.
+Compiled following the `aip` compiler skill from [zach-blumenfeld/aip](https://github.com/zach-blumenfeld/aip), tag `v0.3a3`, commit `2c20a02fe2b6c34eb98476853865a6b07946dc62`, the version used by aip-skillbench. The schema is that tag's `assets/aip-schemas/procedure.schema.json`, copied unchanged as `procedure.schema.json`. `../../evals/results/validate-aip.txt` is the real output of the pinned `scripts/validate.py` run on this folder; count-check output is `../../evals/results/check-aip.txt`.
 
 ## Mapping from SKILL.md
 
@@ -27,3 +27,4 @@ Compiled following the `aip` compiler skill from [zach-blumenfeld/aip](https://g
 - `scan_port_types.py` parses Python annotations with `ast`, so it detects types rather than matching text.
 - `run_check.py` runs commands supplied by the companion; this skill ships no repository-specific checks.
 - Scenarios remain in `../../evals/`, outside the AIP body.
+- Outputs are only those the approved spec names; there is no `target_repository_port`.

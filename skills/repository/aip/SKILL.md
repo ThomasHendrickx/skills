@@ -126,13 +126,11 @@ steps:
       - {name: paths.ports, type: string}
     outputs:
       - {name: read_kind, type: string, description: command or display.}
-      - {name: target_repository_port, type: string}
   - name: p2-2-name-finder
     description: P2 step 2 (agent). Add a need-named method and a page request for a list.
     depends_on: [p2-1-classify-read]
     inputs:
       - {name: read_kind, type: string}
-      - {name: target_repository_port, type: string}
     outputs:
       - {name: finder_spec, type: object}
   - name: p2-3-add-contract-cases

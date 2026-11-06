@@ -1,1 +1,1 @@
-Replace the touched caller's `findBy(where)` use with a need-named overdue-order finder. A list method has no page request, which is problem 3. Leave the untouched caller and its generic call unchanged.
+Customers who already paid are still getting overdue reminders (`send_reminders` in `src/core/reminders.py`). Only orders that are still unpaid and past their due date should be reminded about; drafts are not reminders material either. Fix the reminders.

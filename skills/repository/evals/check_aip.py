@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Validate aip/SKILL.md against its bundled schema and check the graph.
 
-Needs pyyaml. The pinned-compiler schema validation is recorded separately in results/validate-aip.txt.
+Needs pyyaml and jsonschema. The pinned-compiler validate.py run is recorded separately in results/validate-aip.txt.
 Checks: bundled schema, source/ORIGINAL_SKILL.md equals SKILL.md, P0..P3 step counts (3, 7, 5, 4),
 P0 step 1 is the only entry node, depends_on targets exist and form a DAG, and every input is
 produced upstream or is a companion/task input.
@@ -11,6 +11,7 @@ import re
 import sys
 from pathlib import Path
 
+import jsonschema
 import yaml
 
 ROOT = Path(__file__).parents[1]
@@ -32,7 +33,12 @@ def main():
     body = re.search(r"^```yaml\n(.*)\n```\s*$", text.split("\n---\n", 1)[1], re.S | re.M).group(1)
     doc = yaml.safe_load(body)
     schema = json.loads((AIP / "source" / "procedure.schema.json").read_text())
-    check("schema is bundled for the pinned compiler", schema.get("$schema") is not None)
+    try:
+        jsonschema.validate(doc, schema)
+        valid = True
+    except jsonschema.ValidationError:
+        valid = False
+    check("body validates against the bundled schema", valid)
     check("source/ORIGINAL_SKILL.md equals SKILL.md", (AIP / "source" / "ORIGINAL_SKILL.md").read_text() == (ROOT / "SKILL.md").read_text())
 
     steps = {s["name"]: s for s in doc["steps"]}

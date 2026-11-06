@@ -48,8 +48,6 @@ Companion inputs: `paths.domain`, `paths.ports`, `paths.adapters`, `paths.compos
 
 ## P0 Applicability gate
 
-Entry node of every procedure.
-
 1. script: parse ports in `paths.ports` for parameter or return types from `infraModules` -> `violations[]` (problem 4).
 2. agent: check task for problems 1-3 -> `problems[]`.
 3. agent: no problems -> stop; else -> `applies`.
@@ -74,13 +72,7 @@ Entry node of every procedure.
 
 ## P3 Replace a generic repository
 
-Touched code only.
-
 1. agent: list the generic calls the task touches.
 2. agent: replace each with a need-named finder through P2.
 3. agent: remove a generic method only when no caller is left.
 4. script: run `checks.contractTests` and `checks.dependencyDirection`.
-
-# Scenarios
-
-[evals/scenarios.md](evals/scenarios.md): run against this form and `aip/`.

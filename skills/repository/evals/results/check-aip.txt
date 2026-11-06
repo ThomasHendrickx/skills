@@ -1,4 +1,4 @@
-PASS: schema is bundled for the pinned compiler
+PASS: body validates against the bundled schema
 PASS: source/ORIGINAL_SKILL.md equals SKILL.md
 PASS: step names unique
 PASS: P0 has 3 steps (found 3)

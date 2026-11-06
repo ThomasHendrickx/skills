@@ -1,1 +1,3 @@
-Add a reminder command that needs overdue orders. The current list method has no page request, which is problem 3. This is command work, not a dashboard.
+Every morning customers who have not paid on time should get an email. Each customer gets one email that lists their orders that are past the due date and still unpaid (order numbers are enough). Customers with nothing overdue get nothing.
+
+Add this as a use case `send_reminders(orders, notifier, today)` in `src/core/reminders.py`; mails go out through the existing notifier port, subject `Overdue orders`.

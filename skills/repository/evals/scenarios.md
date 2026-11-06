@@ -1,6 +1,6 @@
 # Repository scenarios
 
-Run every scenario independently against a fresh fixture with both `SKILL.md` and `aip/`. A result is PASS, FAIL, or NOT RUN. A missing run is NOT RUN.
+Run every scenario independently against a fresh fixture with both `SKILL.md` and `aip/`, with `harness.py` (see its docstring); results live in `results/`. A result is PASS, FAIL, or NOT RUN. A missing run is NOT RUN. Fixtures are real code with a real task written as a person would; none names a problem number or the expected behaviour.
 
 | ID | Kind | Fixture | Given / When / Then |
 | --- | --- | --- | --- |
