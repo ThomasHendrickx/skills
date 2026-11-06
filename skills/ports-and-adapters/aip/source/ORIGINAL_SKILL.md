@@ -5,61 +5,77 @@ description: Use when business rules need infrastructure, test seams, multiple e
 
 # Problem
 
-Use this when domain or use-case code imports a DB, HTTP client, SDK, or queue; testing a rule needs a DB or network; handlers duplicate a use case; or replacing a vendor, API version, or store changes business logic.
+Matters when one or more holds:
+1. Business rules call infrastructure directly (DB client, HTTP, SDK, queue). Signal: infra imports inside domain/use-case modules.
+2. Testing a rule needs real infrastructure. Signal: use-case tests need a DB or network.
+3. One use case is reached through several entry points (REST, MCP, CLI, queue, cron). Signal: same logic duplicated across handlers.
+4. An external dependency will change or has alternatives (vendor, API version, store). Signal: a swap would touch business logic.
 
 # Solution
 
-The core owns domain-language ports for what it needs. Driven adapters implement outbound ports; driving adapters translate REST, MCP, CLI, queue, or cron input to one inbound port. Use in-memory adapters for core tests. Point dependencies inward and wire only in the composition root.
+- Core owns ports: interfaces in domain language, defined by what the core needs. (1, 4)
+- Driven adapters implement outbound ports; core never imports them. (1, 4)
+- Tests run the core against in-memory adapters. (2)
+- Driving adapters (REST, MCP, CLI) translate input and call one inbound port. (3)
+- Dependencies point inward; wiring happens only in the composition root. (1-4)
 
 # Not needed when
 
-For pure CRUD or pass-through with one entry point, one store, and no test pain, add no ports. Add them when a problem appears.
+No business rules (pure CRUD or pass-through), one entry point, one store, no test pain. Then: no ports. Add them when a problem above appears.
 
 # Rules
 
-- Port signatures use domain types only; adapter types stay outside.
-- Map external and domain types inside adapters.
-- Shape each port around one use case need, not an adapter API.
-- Keep business rules out of adapters.
+1. Port signatures use domain types only; adapter types never cross the boundary.
+2. Mapping between domain and external types happens inside the adapter.
+3. A port is shaped by one use case's need, not by the adapter's API.
+4. Adapters hold no business rules.
 
 # Failure modes
 
-- Technology-shaped ports such as `runQuery` or `findByPrismaWhere`.
-- One generic repository port per table.
-- ORM or SDK types in the domain.
-- Validation or business decisions in a handler or adapter.
-- Ports added for later without a present problem.
+1. Port mirrors the technology (`runQuery`, `findByPrismaWhere`).
+2. One generic repository port per table instead of per need.
+3. ORM or SDK types (e.g. Prisma models) leaking into the domain.
+4. Validation or business decisions inside a handler or adapter.
+5. Ports added "for later" with no problem present.
 
 # Procedures
 
-Read the repo companion for `paths.domain`, `paths.ports`, `paths.adapters`, `paths.compositionRoot`, `checks.dependencyDirection`, and `infraModules`.
+Inputs from the repo companion skill: `paths.domain`, `paths.ports`, `paths.adapters`, `paths.compositionRoot`; `checks.dependencyDirection` (command); `infraModules` (packages that count as infrastructure).
 
-## P0: applicability gate
+## P0 Applicability gate
 
-1. Scan `paths.domain` for imports from `infraModules` to produce `violations`.
-2. Check the task for test pain, multiple entry points, or a changing dependency to produce `problems`.
-3. If neither finds a problem, stop without ports; otherwise set `applies` true.
+Entry node of every procedure.
+1. script: scan `paths.domain` for imports from `infraModules` -> `violations[]`.
+2. agent: check the task against problems 2-4; non-empty `violations` is problem 1 -> `problems[]`.
+3. agent: no problems -> stop, no ports. Otherwise -> `applies: bool`.
 
-## P1: outbound port and driven adapter
+## P1 Outbound port + driven adapter
 
-1. Name the per-use-case need in domain language.
-2. Define its domain-only port in `paths.ports`, then an in-memory adapter.
-3. Write acceptance-criteria scenario tests against the fake before use-case code; use `behaviour-driven-development` for their rules.
-4. Implement until scenarios pass, then add the real adapter with its mapping inside it.
-5. Wire at `paths.compositionRoot`; run `checks.dependencyDirection`.
+1. agent: name the need in domain language per use case (rule 3) -> port spec.
+2. agent: port interface in `paths.ports`, domain types only.
+3. agent: in-memory adapter.
+4. agent: scenario tests from the acceptance criteria against the fake, before use case code (rules: `behaviour-driven-development`) -> failing tests.
+5. agent: implement the use case until the scenarios pass.
+6. agent: real adapter, mapping inside it (rule 2).
+7. agent: wire in `paths.compositionRoot`.
+8. script: run `checks.dependencyDirection`.
 
-## P2: driving adapter
+## P2 Driving adapter for an existing use case
 
-1. Find the inbound port. If the rule is in another handler, run P3 first.
-2. Translate transport input to a domain command, call the port, and map results and errors at the boundary.
-3. Test translation and error mapping only; wire and run `checks.dependencyDirection`.
+1. agent: find the inbound port; if the logic sits in another handler, run P3 first.
+2. agent: adapter translates input to a domain command, calls the port, maps results and errors to the transport.
+3. agent: test only the translation.
+4. agent: wire.
+5. script: run `checks.dependencyDirection`.
 
-## P3: extract a use case
+## P3 Extract a use case from a handler/adapter
 
-1. For touched code only, capture current behaviour as scenarios.
-2. Move rules behind an inbound port in `paths.domain`.
-3. Reduce the handler or adapter to translation; run the direction check and scenarios.
+Touched code only.
+1. agent: capture current behaviour as scenarios.
+2. agent: move the rules behind an inbound port in `paths.domain`.
+3. agent: reduce the handler to translation only.
+4. script: run `checks.dependencyDirection` and the scenarios.
 
 # Scenarios
 
-Run [evals/scenarios.md](evals/scenarios.md) against this skill and its compiled AIP form.
+[evals/scenarios.md](evals/scenarios.md): run against this form and `aip/`.
