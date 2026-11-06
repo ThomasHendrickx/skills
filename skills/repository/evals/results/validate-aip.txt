@@ -1,0 +1,1 @@
+PASS: AIP v0.3a3 procedure schema validation
