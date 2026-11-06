@@ -19,6 +19,7 @@ This installs into `.agents/skills/` (read by Codex) and links each skill into `
 - `behaviour-driven-development`: tests only from approved scenarios and guarantees, outside in; replaces `test-driven-development` in a repo that adopts it.
 - `typescript`: types, errors, validation, naming.
 - `domain-modelling`: ports and adapters, invariants, use cases, events.
+- `ports-and-adapters`: applies domain-owned ports and boundary adapters when business rules need infrastructure, test seams, or multiple entry points.
 - `web-frontend`: feature structure, state, React rules.
 - `performance`: scale targets and budget, API design, the toolbelt, live updates, proof at scale, UI states.
 - `code-review`: acceptance criteria and standards as two independent axes.
