@@ -5,7 +5,7 @@
  },
  "S2.2": {
   "verdict": "PASS",
-  "why": "rule-aware rejudge (both forms, same prompt): Contract src/contracts/invoice_paid.py has FIELDS event_id, invoice_id, order_id, paid_on, invoice_version: ids, the paid date, and the idempotency and version fields for rules 4 and 5. The docstring states 'No state transfer: only ids and the facts of the change'. The relay maps through from_outbox, which copies named fields only, so no other state reaches the bus."
+  "why": "In invoice_paid.py the contract FIELDS are event_id, invoice_id, order_id, paid_on and invoice_version. TASK.md says Shipping needs the order and the payment date, which are order_id and paid_on. The remaining fields are the ids and the version every event carries, so the payload has no extra state."
  },
  "S4.2": {
   "verdict": "PASS",

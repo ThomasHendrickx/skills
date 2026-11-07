@@ -33,7 +33,7 @@
  ],
  "S2.2|skill-md": [
   "PASS",
-  "rule-aware rejudge (both forms, same prompt): Contract src/contracts/invoice_paid.py lists event_id, invoice_id, invoice_version, order_id, paid_on. These are ids, the paid date shipping asked for, and the dedupe and ordering keys that rules 4 and 5 need. No amount, customer or invoice state is carried, and the docstring says no state transfer is declared. The relay builds the body through invoice_paid.build, which copies named fields only (invoice_id, order_id, paid_on from the outbox payload), so nothing extra leaks even though the outbox payload is the whole internal event."
+  "In invoice_paid.py (src/contracts) the published FIELDS are only order_id and paid_on, which TASK.md says Shipping needs, plus the ids and version (event_id, invoice_id, invoice_version). Nothing else is included, such as an amount or customer data."
  ],
  "S2.3|skill-md": [
   "PASS",
@@ -89,7 +89,7 @@
  ],
  "S2.2|aip": [
   "PASS",
-  "rule-aware rejudge (both forms, same prompt): Contract src/contracts/invoice_paid.py has FIELDS event_id, invoice_id, order_id, paid_on, invoice_version: ids, the paid date, and the idempotency and version fields for rules 4 and 5. The docstring states 'No state transfer: only ids and the facts of the change'. The relay maps through from_outbox, which copies named fields only, so no other state reaches the bus."
+  "In invoice_paid.py the contract FIELDS are event_id, invoice_id, order_id, paid_on and invoice_version. TASK.md says Shipping needs the order and the payment date, which are order_id and paid_on. The remaining fields are the ids and the version every event carries, so the payload has no extra state."
  ],
  "S2.3|aip": [
   "PASS",

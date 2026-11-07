@@ -11,7 +11,7 @@ Run every scenario independently against a fresh fixture with both `SKILL.md` an
 | S1.2 | script | `invoice-paid` | Then no domain or use case file imports the bus client. |
 | S1.3 | agent | `invoice-paid` | Then the event is a past-tense fact and listed in paths.eventList. |
 | S2.1 | script | `invoice-paid` | Given shipping as the consumer, When P2 completes, Then a versioned contract exists in paths.integrationEvents and no shipping code imports the internal event type. |
-| S2.2 | agent | `invoice-paid` | Then the payload holds only the fields shipping's need names; any carried state is declared. |
+| S2.2 | agent | `invoice-paid` | Then the payload holds only the fields Shipping needs, plus the ids and version every event carries (rule 7). |
 | S2.3 | script | `no-consumer` | Given a task with no consumer named, When P2 runs, Then it stops and no contract file exists. |
 | S3.1 | script | `consumer` | Given a consumer, When the same event arrives twice, Then the effect happens once. |
 | S3.2 | script | `consumer` | When an older version arrives after a newer one for the same aggregate, Then it is ignored. |

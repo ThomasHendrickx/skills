@@ -49,7 +49,7 @@ SCENARIOS = sorted((s for _, scenarios in RUNS.values() for s in scenarios), key
 GATED = {s: f"P{s[1:].split('.')[0]}" for s in SCENARIOS if not s.startswith("S0.")}
 JUDGED = {
     "S1.3": "Then the event is a past-tense fact and listed in paths.eventList.",
-    "S2.2": "Then the payload holds only the fields shipping's need names; any carried state is declared.",
+    "S2.2": "Then the payload holds only the fields Shipping needs, plus the ids and version every event carries (rule 7).",
     "S4.2": "Given an in-process handler doing a same-transaction update, When P4 completes, Then it is an explicit call in the use case.",
 }
 PROMPT = """You work in the repository at {repo}. Apply the skill in {skill} (read its SKILL.md first and follow its procedures) to the task in {repo}/TASK.md. The repo companion is {repo}/COMPANION.md; run commands from {repo}. The Postgres database for this repo is already running; its URL is in {repo}/database.url.

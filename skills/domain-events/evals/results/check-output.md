@@ -7,7 +7,7 @@
 | S1.2 | PASS | PASS | domain or use case files importing the bus client=[] / domain or use case files importing the bus client=[] |
 | S1.3 | PASS | PASS | InvoicePaid is a past-tense event in src/sales/core/events.py and is listed in docs/event-list.md as 'a customer paid an invoice'. / src/sales/core/events.py adds InvoicePaid (past-tense fact, raised in invoices.py pay()), and docs/event-list.md lists InvoicePaid with its fields. |
 | S2.1 | PASS | PASS | contract files=['invoice_paid.py'] versioned={'invoice_paid.py': True} shipping imports of sales=[] / contract files=['invoice_paid.py'] versioned={'invoice_paid.py': True} shipping imports of sales=[] |
-| S2.2 | PASS | PASS | rule-aware rejudge (both forms, same prompt): Contract src/contracts/invoice_paid.py lists event_id, invoice_id, invoice_version, order_id, paid_on. These are ids, the paid date shipping asked for, and the dedupe and ordering keys that rules 4 and 5 need. No amount, customer or invoice state is carried, and the docstring says no state transfer is declared. The relay builds the body through invoice / rule-aware rejudge (both forms, same prompt): Contract src/contracts/invoice_paid.py has FIELDS event_id, invoice_id, order_id, paid_on, invoice_version: ids, the paid date, and the idempotency and version fields for rules 4 and 5. The docstring states 'No state transfer: only ids and the facts of the change'. The relay maps through from_outbox, which copies named fields only, so no other state re |
+| S2.2 | PASS | PASS | In invoice_paid.py (src/contracts) the published FIELDS are only order_id and paid_on, which TASK.md says Shipping needs, plus the ids and version (event_id, invoice_id, invoice_version). Nothing else is included, such as an amount or customer data. / In invoice_paid.py the contract FIELDS are event_id, invoice_id, order_id, paid_on and invoice_version. TASK.md says Shipping needs the order and the payment date, which are order_id and paid_on. The remaining fields are the ids and the version every event carries, so the payload has no extra state. |
 | S2.3 | PASS | PASS | applies=True contract files added=[] / applies=True contract files added=[] |
 | S3.1 | PASS | PASS | same InvoicePaid delivered twice -> fulfilments for o1=[('requested',)] deliver exits=[0, 0, 0] / same InvoicePaid delivered twice -> fulfilments for o1=[('requested',)] deliver exits=[0, 0, 0] |
 | S3.2 | PASS | PASS | InvoiceRefunded v3 then InvoicePaid v2 -> fulfilments for o2=[] deliver exits=[0, 0, 0] / InvoiceRefunded v3 then InvoicePaid v2 -> fulfilments for o2=[] deliver exits=[0, 0, 0] |
@@ -340,7 +340,7 @@ diff -ruN -x __pycache__ -x '*.pyc' -x RESULT.json -x database.url ../base/tests
 +        self.assertEqual(self.rows("SELECT count(*) FROM sales_outbox"), [(0,)])
 +        self.assertEqual(self.rows("SELECT status FROM invoices"), [("issued",)])
 
-### S2.2 [skill-md] Then the payload holds only the fields shipping's need names; any carried state is declared.
+### S2.2 [skill-md] Then the payload holds only the fields Shipping needs, plus the ids and version every event carries (rule 7).
 diff base -> repo:
 diff -ruN -x __pycache__ -x '*.pyc' -x RESULT.json -x database.url ../base/docs/event-list.md ../repo/docs/event-list.md
 --- ../base/docs/event-list.md	2026-11-07 17:53:34.559439980 +0100
@@ -1039,7 +1039,7 @@ diff -ruN -x __pycache__ -x '*.pyc' -x RESULT.json -x database.url ../base/tests
 +        self.assertEqual(main.relay_sales_outbox(), 0)
 +        self.assertEqual(bus.fetch(invoice_paid.TOPIC), [])
 
-### S2.2 [aip] Then the payload holds only the fields shipping's need names; any carried state is declared.
+### S2.2 [aip] Then the payload holds only the fields Shipping needs, plus the ids and version every event carries (rule 7).
 diff base -> repo:
 diff -ruN -x __pycache__ -x '*.pyc' -x RESULT.json -x database.url ../base/docs/event-list.md ../repo/docs/event-list.md
 --- ../base/docs/event-list.md	2026-11-07 17:53:34.559439980 +0100

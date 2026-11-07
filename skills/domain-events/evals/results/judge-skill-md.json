@@ -5,7 +5,7 @@
  },
  "S2.2": {
   "verdict": "PASS",
-  "why": "rule-aware rejudge (both forms, same prompt): Contract src/contracts/invoice_paid.py lists event_id, invoice_id, invoice_version, order_id, paid_on. These are ids, the paid date shipping asked for, and the dedupe and ordering keys that rules 4 and 5 need. No amount, customer or invoice state is carried, and the docstring says no state transfer is declared. The relay builds the body through invoice_paid.build, which copies named fields only (invoice_id, order_id, paid_on from the outbox payload), so nothing extra leaks even though the outbox payload is the whole internal event."
+  "why": "In invoice_paid.py (src/contracts) the published FIELDS are only order_id and paid_on, which TASK.md says Shipping needs, plus the ids and version (event_id, invoice_id, invoice_version). Nothing else is included, such as an amount or customer data."
  },
  "S4.2": {
   "verdict": "PASS",
