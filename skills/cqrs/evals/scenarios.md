@@ -21,7 +21,7 @@ Run every scenario independently against a fresh fixture with both `SKILL.md` an
 | S4.1 | agent | `update-order` | Given an UpdateOrder(dto) handler that diffs fields, and a task letting customers change their shipping address, When P4 completes, Then a command named for the address change carries only address fields and returns id, outcome or version. |
 | S4.2 | script | `update-order` | Then UpdateOrder still exists and its tests for the other fields pass. |
 
-S0.1 is the intentional no-problem control. Every other fixture carries a real problem signal, so P0 does not stop the scenario before its procedure; `slow-totals` has a level-1 query already, and its measurement is under budget.
+S0.1 is the intentional no-problem control. Every other fixture carries a real problem signal, so P0 does not stop the scenario before its procedure; `slow-totals` builds the page by loading every order (problem 1, so P0 applies), and its measurement is under budget, so P2 step 1 is what stops it. A scenario S1.x to S4.x whose run P0 stopped (applies not true) is NOT RUN, whatever its check says: its procedure never ran.
 
 How the script checks work, beyond the obvious:
 

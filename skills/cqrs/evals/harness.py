@@ -11,7 +11,8 @@ COMPANION.add.md overrides companion keys. An agent works each run directory (se
 then runs the script scenarios as executable checks against a fresh check database, prints the
 evidence for the judged scenarios (S1.2, S1.5, S2.3, S4.1), reads their verdicts from
 WORK/<form>/JUDGE.json and reports PASS, FAIL or NOT RUN per scenario and form. S0.4 is read from
-the agent's P0 output. A run without an agent report is NOT RUN, never PASS.
+the agent's P0 output. A run without an agent report is NOT RUN, never PASS; so is a scenario in GATED
+whose run P0 stopped, since its procedure never ran.
 """
 import ast
 import hashlib
@@ -47,6 +48,9 @@ RUNS = {
     "update-order": ("P0, then P4", ["S4.1", "S4.2"]),
 }
 SCENARIOS = [s for _, scenarios in RUNS.values() for s in scenarios]
+# S<n>.x tests procedure P<n>, which runs only after P0 applies: if P0 stopped, the procedure never ran, so the
+# scenario is NOT RUN (a hollow pass blocks like a missing run), whatever its check would say
+GATED = {s: f"P{s[1:].split('.')[0]}" for s in SCENARIOS if not s.startswith("S0.")}
 JUDGED = {
     "S1.2": "Then paging, sort and totals are computed in SQL, not in code.",
     "S1.5": "Then no query handler evaluates the tier rule; the tier is read from a field the write side persists.",
@@ -510,7 +514,11 @@ def check(work, admin):
                 continue
             base_dsn, _ = check_db(admin, form, run + "_base", base)
             base_tables = tables(base_dsn)
+            p0 = result(repo) or {}
             for sid in scenarios:
+                if sid in GATED and p0.get("applies") is not True:
+                    table[(sid, form)] = ("NOT RUN", f"P0 stopped (applies={p0.get('applies')}), so {GATED[sid]} never ran")
+                    continue
                 if sid in CHECKS:
                     dsn, error = check_db(admin, form, run, repo)
                     if error:

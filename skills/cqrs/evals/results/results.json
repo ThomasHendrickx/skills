@@ -37,7 +37,7 @@
  ],
  "S2.1|skill-md": [
   "PASS",
-  "applies=False new tables=[] PROJECTION.json=False"
+  "applies=True new tables=[] PROJECTION.json=False"
  ],
  "S2.2|skill-md": [
   "PASS",
@@ -101,19 +101,19 @@
  ],
  "S2.1|aip": [
   "PASS",
-  "applies=False new tables=[] PROJECTION.json=False"
+  "applies=True new tables=[] PROJECTION.json=False"
  ],
  "S2.2|aip": [
   "PASS",
   "table=monthly_revenue_projection query reads projection=True query reads invoices=False report correct=True ([[\"2026-11-01\", 900, 1], [\"2026-10-01\", 700, 1], [\"2026-09-01\", 3500, 2]]) same change twice same rows=True rebuild equals incremental=True rows=4 rebuild exit=0"
  ],
  "S2.3|aip": [
-  "FAIL",
-  "schema.sql comment and rebuild_revenue_projection.py declare the trigger (same transaction as issue/void) and the rebuild command, but nowhere in the repo is a staleness bound or an idempotency key declared (only an implicit code comment in pg_invoices.save about repeated saves); the sync/RYOW point is not stated either."
+  "PASS",
+  "src/adapters/pg_revenue_projection.py docstring declares the trigger (same transaction as the invoice change), staleness (zero), idempotency key ((invoice_id, change) in monthly_revenue_applied) and the rebuild command, with a rebuild() implementation. schema.sql repeats the key and rebuild. The projection is synchronous, and the docstring states the read-your-own-writes outcome."
  ],
  "S2.4|aip": [
   "PASS",
-  "rolled-back dispatch: raised RaiseException, tables changed=[]; committed dispatch: committed, new tables that gained a row=['order_shipping', 'order_shipping_processed', 'shipping_outbox']; PROJECTION.json={\"table\": \"order_shipping\", \"rebuild\": \"python3 -m src.projections.order_shipping rebuild\", \"process\": \"python3 -m src.projections.order_shipping process\"}"
+  "rolled-back dispatch: raised RaiseException, tables changed=[]; committed dispatch: committed, new tables that gained a row=['processed_shipping_events', 'shipping_outbox']; PROJECTION.json={\"table\": \"order_shipping_status\", \"rebuild\": \"python3 -m src.rebuild_projection\", \"process\": \"python3 -m src.process_projection\"}"
  ],
  "S3.1|aip": [
   "PASS",

@@ -1,6 +1,14 @@
 # Report
-Steps: P0 (scan_query_imports.py: no violations; problems 1 and 2 hold; applies true; RESULT.json written). P2: evidence is a measurement over budget (p95 2.4 s vs 300 ms) plus a history read.
-Projection spec: table monthly_revenue_projection (month, revenue_cents, invoices). Trigger: same transaction (PgInvoiceRepository.add/save), so finance sees issue/void immediately (no async, no outbox, no read-your-own-writes gap). Staleness: none. Idempotency: the void/unvoid transition is guarded in SQL (UPDATE ... WHERE voided <> new), so a repeated save changes nothing. Rebuild: python3 -m src.rebuild_revenue_projection (creates the table if missing, so run it once on the existing database).
-Changed: schema.sql, src/adapters/pg_invoices.py, src/queries/monthly_revenue.py (reads the projection), src/rebuild_revenue_projection.py, tests/test_monthly_revenue.py (double-void, rebuild equals incremental), PROJECTION.json.
-Checks (run_check.py): direction ok, 7 tests pass.
-Caveat: the projection counts invoices dated after "today" within the current month (the old query excluded them); not measured against production data.
+
+Steps run: P0 (scan_query_imports.py: no violations; problems 1 and 2 hold: a rollup across invoices, and the 2.4 s p95 misses the 300 ms budget; applies = true; written to repo/RESULT.json). P2 (level 2 projection; evidence is the measurement over budget).
+
+Changes (in repo):
+- schema.sql: tables monthly_revenue_projection (month, revenue_cents, invoices) and monthly_revenue_applied (idempotency key invoice_id + change).
+- src/adapters/pg_revenue_projection.py: updater and rebuild. Trigger: same transaction as the invoice change (PgInvoiceRepository.add/save call it on their connection), so staleness is 0 and finance sees issue/void immediately (read-your-own-writes). Idempotency key (invoice_id, change). Rebuild: python3 -m src.adapters.pg_revenue_projection.
+- src/queries/monthly_revenue.py: now reads the projection (same read type and port); months with zero invoices are filtered out.
+- tests/test_monthly_revenue.py: scenarios for immediate visibility after issue/void, double-apply, rollback, rebuild equals incremental.
+- repo/PROJECTION.json written (process null: same-transaction trigger).
+
+Checks: check_direction.py ok; 9 tests pass. I ran rebuild once on the live DB after the test reset.
+
+Notes: no outbox or domain-events needed (same context and transaction). Existing production data needs the rebuild command run once after the schema is applied. Minor semantic difference: the old query excluded invoices dated after `today` within the current month; the projection is month-grained and includes them. I could not measure the 300 ms budget on production-sized data here.
