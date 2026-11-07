@@ -1,0 +1,196 @@
+diff -ruN -x __pycache__ -x '*.pyc' -x database.url base/RESULT.json repo/RESULT.json
+--- base/RESULT.json	1970-01-01 01:00:00.000000000 +0100
++++ repo/RESULT.json	2026-11-07 17:15:59.622564387 +0100
+@@ -0,0 +1 @@
++{"violations": ["src/sales/core/commands/pay_invoice.py imports src.infra.bus", "src/sales/core/commands/cancel_invoice.py imports src.infra.bus"], "problems": [1, 2], "applies": true}
+diff -ruN -x __pycache__ -x '*.pyc' -x database.url base/docs/event-list.md repo/docs/event-list.md
+--- base/docs/event-list.md	2026-11-07 17:08:07.021316218 +0100
++++ repo/docs/event-list.md	2026-11-07 17:16:14.421415626 +0100
+@@ -6,6 +6,7 @@
+ 
+ - OrderPlaced: a customer placed an order (order id, customer id, total).
+ - InvoiceIssued: an invoice was issued for an order (invoice id, order id, amount).
++- InvoicePaid: an invoice was paid (invoice id, order id, paid on).
+ 
+ ## shipping
+ 
+diff -ruN -x __pycache__ -x '*.pyc' -x database.url base/schema.sql repo/schema.sql
+--- base/schema.sql	2026-11-07 17:08:07.021316218 +0100
++++ repo/schema.sql	2026-11-07 17:16:14.421415626 +0100
+@@ -25,6 +25,15 @@
+     version integer NOT NULL DEFAULT 1
+ );
+ 
++-- Sales outbox: domain events written in the change's transaction, published by the relay after commit.
++CREATE TABLE sales_outbox (
++    id bigserial PRIMARY KEY,
++    topic text NOT NULL,
++    body jsonb NOT NULL,
++    created_at timestamptz NOT NULL DEFAULT now(),
++    published_at timestamptz
++);
++
+ -- Shipping context
+ CREATE TABLE fulfilments (
+     id text PRIMARY KEY,
+diff -ruN -x __pycache__ -x '*.pyc' -x database.url base/src/sales/adapters/pg.py repo/src/sales/adapters/pg.py
+--- base/src/sales/adapters/pg.py	2026-11-07 17:08:07.031316118 +0100
++++ repo/src/sales/adapters/pg.py	2026-11-07 17:16:14.421415626 +0100
+@@ -1,4 +1,7 @@
++from psycopg.types.json import Jsonb
++
+ from src.db import connect
++from src.sales.core.events import InvoicePaid
+ from src.sales.core.invoices import Invoice
+ from src.sales.core.orders import Order, OrderLine
+ from src.sales.core.ports import NotFound
+@@ -48,6 +51,11 @@
+         if row is None:
+             raise StaleInvoice(invoice.id)
+         invoice.version = row[0]
++        for event in invoice.events:
++            if isinstance(event, InvoicePaid):
++                body = {"invoice_id": event.invoice_id, "order_id": event.order_id, "paid_on": event.paid_on.isoformat()}
++                self.conn.execute("INSERT INTO sales_outbox (topic, body) VALUES (%s, %s)", ("sales.invoice-paid", Jsonb(body)))
++        invoice.events.clear()
+ 
+ 
+ class PgSalesUnitOfWork:
+diff -ruN -x __pycache__ -x '*.pyc' -x database.url base/src/sales/adapters/relay.py repo/src/sales/adapters/relay.py
+--- base/src/sales/adapters/relay.py	1970-01-01 01:00:00.000000000 +0100
++++ repo/src/sales/adapters/relay.py	2026-11-07 17:16:14.421415626 +0100
+@@ -0,0 +1,16 @@
++"""Outbox relay: publishes committed sales events to the bus, at least once (a crash between publish and mark re-publishes)."""
++from src.db import connect
++from src.infra import bus
++
++
++def run_once() -> int:
++    """Publish every unpublished outbox row in order; return how many were published."""
++    count = 0
++    with connect() as conn:
++        rows = conn.execute("SELECT id, topic, body FROM sales_outbox WHERE published_at IS NULL ORDER BY id").fetchall()
++        for row_id, topic, body in rows:
++            bus.publish(topic, body)
++            conn.execute("UPDATE sales_outbox SET published_at = now() WHERE id = %s", (row_id,))
++            conn.commit()
++            count += 1
++    return count
+diff -ruN -x __pycache__ -x '*.pyc' -x database.url base/src/sales/core/commands/pay_invoice.py repo/src/sales/core/commands/pay_invoice.py
+--- base/src/sales/core/commands/pay_invoice.py	2026-11-07 17:15:16.272000168 +0100
++++ repo/src/sales/core/commands/pay_invoice.py	2026-11-07 17:16:14.421415626 +0100
+@@ -1,12 +1,9 @@
+ from datetime import date
+ 
+-from src.infra import bus
+-
+ 
+ def pay_invoice(uow, invoice_id: str, paid_on: date) -> int:
+     with uow:
+         invoice = uow.invoices.get(invoice_id)
+         invoice.pay(paid_on)
+-        bus.publish("sales.invoice-paid", {"invoice_id": invoice.id, "order_id": invoice.order_id, "paid_on": paid_on.isoformat()})
+-        uow.invoices.save(invoice)
++        uow.invoices.save(invoice)  # also writes the recorded events to the outbox, in this transaction
+     return invoice.version
+diff -ruN -x __pycache__ -x '*.pyc' -x database.url base/src/sales/core/events.py repo/src/sales/core/events.py
+--- base/src/sales/core/events.py	2026-11-07 17:08:07.025316178 +0100
++++ repo/src/sales/core/events.py	2026-11-07 17:16:14.421415626 +0100
+@@ -1,5 +1,6 @@
+ """Sales domain events (see docs/event-list.md). Aggregates record them in `events`."""
+ from dataclasses import dataclass
++from datetime import date
+ 
+ 
+ @dataclass(frozen=True)
+@@ -14,3 +15,10 @@
+     invoice_id: str
+     order_id: str
+     amount_cents: int
++
++
++@dataclass(frozen=True)
++class InvoicePaid:
++    invoice_id: str
++    order_id: str
++    paid_on: date
+diff -ruN -x __pycache__ -x '*.pyc' -x database.url base/src/sales/core/invoices.py repo/src/sales/core/invoices.py
+--- base/src/sales/core/invoices.py	2026-11-07 17:08:07.027316158 +0100
++++ repo/src/sales/core/invoices.py	2026-11-07 17:16:14.421415626 +0100
+@@ -1,7 +1,7 @@
+ from dataclasses import dataclass, field
+ from datetime import date
+ 
+-from src.sales.core.events import InvoiceIssued
++from src.sales.core.events import InvoiceIssued, InvoicePaid
+ 
+ 
+ class InvoiceNotPayable(Exception):
+@@ -29,6 +29,7 @@
+         if self.status != "issued":
+             raise InvoiceNotPayable(f"invoice {self.id} is {self.status}")
+         self.status, self.paid_on = "paid", on
++        self.events.append(InvoicePaid(self.id, self.order_id, on))
+ 
+     def cancel(self) -> None:
+         if self.status != "issued":
+diff -ruN -x __pycache__ -x '*.pyc' -x database.url base/tests/test_payment_notice.py repo/tests/test_payment_notice.py
+--- base/tests/test_payment_notice.py	2026-11-07 17:15:16.273000158 +0100
++++ repo/tests/test_payment_notice.py	2026-11-07 17:16:14.437415465 +0100
+@@ -1,6 +1,7 @@
+ from datetime import date
+ 
+ from src import main
++from src.sales.adapters import relay
+ from src.shipping.consumers import invoice_paid
+ from tests.support import DbTest
+ 
+@@ -9,5 +10,6 @@
+     def test_a_payment_starts_fulfilment(self):
+         self.invoice()
+         main.pay_invoice("i1", date(2026, 11, 2))
++        relay.run_once()
+         invoice_paid.run_once()
+         self.assertEqual(self.rows("SELECT order_id, status FROM fulfilments"), [("o1", "requested")])
+diff -ruN -x __pycache__ -x '*.pyc' -x database.url base/tests/test_sales.py repo/tests/test_sales.py
+--- base/tests/test_sales.py	2026-11-07 17:08:07.035316077 +0100
++++ repo/tests/test_sales.py	2026-11-07 17:16:14.425415585 +0100
+@@ -26,3 +26,38 @@
+         self.invoice()
+         main.cancel_invoice("i1")
+         self.assertEqual(self.rows("SELECT status FROM invoices"), [("cancelled",)])
++
++
++class PayInvoiceOutboxTest(DbTest):
++    def messages(self):
++        return self.rows("SELECT body FROM bus_messages WHERE topic = 'sales.invoice-paid'")
++
++    def test_paying_writes_one_outbox_row_and_publishes_nothing_yet(self):
++        self.invoice()
++        main.pay_invoice("i1", date(2026, 11, 2))
++        self.assertEqual(self.rows("SELECT topic FROM sales_outbox"), [("sales.invoice-paid",)])
++        self.assertEqual(self.messages(), [])
++
++    def test_a_failed_save_leaves_no_outbox_row_and_no_message(self):
++        from src.sales.adapters.pg import StaleInvoice
++        from src.sales.adapters.pg import PgSalesUnitOfWork
++        self.invoice()
++        uow = PgSalesUnitOfWork()
++        with self.assertRaises(StaleInvoice):
++            with uow:
++                invoice = uow.invoices.get("i1")
++                self.rows("UPDATE invoices SET version = 5 WHERE id = 'i1' RETURNING id")
++                invoice.pay(date(2026, 11, 2))
++                uow.invoices.save(invoice)
++        from src.sales.adapters import relay
++        relay.run_once()
++        self.assertEqual(self.rows("SELECT * FROM sales_outbox"), [])
++        self.assertEqual(self.messages(), [])
++
++    def test_relay_publishes_once_after_commit(self):
++        from src.sales.adapters import relay
++        self.invoice()
++        main.pay_invoice("i1", date(2026, 11, 2))
++        self.assertEqual(relay.run_once(), 1)
++        self.assertEqual(relay.run_once(), 0)
++        self.assertEqual(len(self.messages()), 1)

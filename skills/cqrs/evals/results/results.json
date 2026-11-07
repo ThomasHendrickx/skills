@@ -49,7 +49,7 @@
  ],
  "S2.4|skill-md": [
   "PASS",
-  "rolled-back dispatch: raised RaiseException, tables changed=[]; committed dispatch: committed, new tables that gained a row=['order_shipping_processed', 'shipping_outbox']; PROJECTION.json={\"table\": \"order_shipping_status\", \"rebuild\": \"python3 -m src.projections.order_shipping rebuild\", \"process\": \"python3 -m src.projections.order_shipping\"}"
+  "rolled-back dispatch: raised RaiseException, tables changed=[]; committed dispatch: committed, new tables that gained a row=['order_shipping_processed_events', 'shipping_outbox']; PROJECTION.json={\"table\": \"order_shipping\", \"rebuild\": \"python3 -m src.projections.rebuild\", \"process\": \"python3 -m src.projections.process\"}"
  ],
  "S3.1|skill-md": [
   "PASS",
@@ -113,7 +113,7 @@
  ],
  "S2.4|aip": [
   "PASS",
-  "rolled-back dispatch: raised RaiseException, tables changed=[]; committed dispatch: committed, new tables that gained a row=['shipping_outbox']; PROJECTION.json={\"table\": \"order_shipping_status\", \"rebuild\": \"python3 -m src.projections.order_shipping rebuild\", \"process\": \"python3 -m src.projections.order_shipping process\"}"
+  "rolled-back dispatch: raised RaiseException, tables changed=[]; committed dispatch: committed, new tables that gained a row=['order_shipping', 'order_shipping_processed', 'shipping_outbox']; PROJECTION.json={\"table\": \"order_shipping\", \"rebuild\": \"python3 -m src.projections.order_shipping rebuild\", \"process\": \"python3 -m src.projections.order_shipping process\"}"
  ],
  "S3.1|aip": [
   "PASS",

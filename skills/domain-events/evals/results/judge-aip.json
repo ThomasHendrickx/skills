@@ -1,0 +1,3 @@
+{"S1.3": {"verdict": "PASS", "why": "InvoicePaid is a past-tense fact (src/sales/core/events.py, recorded in Invoice.pay) and is listed in docs/event-list.md, the companion's paths.eventList."},
+ "S2.2": {"verdict": "PASS", "why": "src/contracts/invoice_paid.py carries order_id and paid_on, the two fields shipping needs. The extra event_id, invoice_id and version are identifiers or declared metadata, and the docstring declares them, with no invoice state carried."},
+ "S4.2": {"verdict": "FAIL", "why": "The agent changed nothing. The handler-chain diff holds only RESULT.json, so src/sales/core/commands/pay_invoice.py has no explicit call and the update still runs through HANDLERS in handlers.py, dispatched by the unit of work in adapters/pg.py."}}

@@ -30,6 +30,7 @@ SKILL = HERE.parent
 FIXTURES = HERE / "fixtures"
 SCAN = SKILL / "aip" / "scripts" / "scan_query_imports.py"
 FORMS = {"skill-md": ["SKILL.md"], "aip": ["aip"]}
+RELATED = ["domain-events"]  # skills SKILL.md points to by name, given to the agent in the same form
 IMAGE = "docker.io/library/postgres:17-alpine"
 
 # run id -> (procedure instruction, scenarios)
@@ -55,7 +56,7 @@ JUDGED = {
 PROMPT = """You work in the repository at {repo}. Apply the skill in {skill} (read its SKILL.md first and follow its procedures) to the task in {repo}/TASK.md. The repo companion is {repo}/COMPANION.md; run commands from {repo}. The Postgres database for this repo is already running; its URL is in {repo}/database.url.
 
 Run {procs}. Before anything else, run P0 and write its result to {repo}/RESULT.json as {{"violations": [...], "problems": [numbers], "applies": bool}}.
-If the skill has script steps, run them (scripts are under the skill folder; read a script's header for usage). Do the steps yourself; do not look outside {repo} and {skill}.
+A skill it points to by name is in {skill}/related/<name> (read it when the skill points there). If the skill has script steps, run them (scripts are under the skill folder; read a script's header for usage). Do the steps yourself; do not look outside {repo} and {skill}.
 {extra}
 Finish with a short report (the steps you ran, what you changed, anything you could not do) and also write it to {run}/AGENT_REPORT.md.
 """
@@ -145,6 +146,14 @@ def prepare(work, admin, only=()):
                     shutil.copy(src / "SKILL.md", run_dir / "skill" / "SKILL.md")
                 else:
                     shutil.copy(src, run_dir / "skill" / "SKILL.md")
+                for name in RELATED:
+                    other, dest = SKILL.parent / name / part, run_dir / "skill" / "related" / name
+                    dest.mkdir(parents=True)
+                    if other.is_dir():
+                        shutil.copytree(other / "scripts", dest / "scripts")
+                        shutil.copy(other / "SKILL.md", dest / "SKILL.md")
+                    else:
+                        shutil.copy(other, dest / "SKILL.md")
             repo = run_dir / "repo"
             (run_dir / "PROMPT.md").write_text(PROMPT.format(
                 repo=repo, skill=run_dir / "skill", run=run_dir, procs=procs, extra=EXTRA[procs].format(repo=repo)))
