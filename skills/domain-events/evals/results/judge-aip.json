@@ -1,3 +1,14 @@
-{"S1.3": {"verdict": "PASS", "why": "InvoicePaid is a past-tense fact (src/sales/core/events.py, recorded in Invoice.pay) and is listed in docs/event-list.md, the companion's paths.eventList."},
- "S2.2": {"verdict": "PASS", "why": "src/contracts/invoice_paid.py carries order_id and paid_on, the two fields shipping needs. The extra event_id, invoice_id and version are identifiers or declared metadata, and the docstring declares them, with no invoice state carried."},
- "S4.2": {"verdict": "FAIL", "why": "The agent changed nothing. The handler-chain diff holds only RESULT.json, so src/sales/core/commands/pay_invoice.py has no explicit call and the update still runs through HANDLERS in handlers.py, dispatched by the unit of work in adapters/pg.py."}}
+{
+ "S1.3": {
+  "verdict": "PASS",
+  "why": "src/sales/core/events.py adds InvoicePaid (past-tense fact, raised in invoices.py pay()), and docs/event-list.md lists InvoicePaid with its fields."
+ },
+ "S2.2": {
+  "verdict": "PASS",
+  "why": "rule-aware rejudge (both forms, same prompt): Contract src/contracts/invoice_paid.py has FIELDS event_id, invoice_id, order_id, paid_on, invoice_version: ids, the paid date, and the idempotency and version fields for rules 4 and 5. The docstring states 'No state transfer: only ids and the facts of the change'. The relay maps through from_outbox, which copies named fields only, so no other state reaches the bus."
+ },
+ "S4.2": {
+  "verdict": "PASS",
+  "why": "src/sales/core/commands/pay_invoice.py now calls uow.accounts.get, record_payment and save explicitly, and credit_customer_account is removed from HANDLERS in src/sales/core/handlers.py (only the receipt remains)."
+ }
+}

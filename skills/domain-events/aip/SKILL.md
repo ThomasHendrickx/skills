@@ -64,13 +64,14 @@ steps:
     outputs:
       - {name: problems, type: "list[integer]", description: Problem numbers 1-4 that hold.}
   - name: p0-3-decide-applies
-    description: P0 step 3 (agent). Reaction in the same context and transaction -> stop, explicit call; no problems -> stop; else applies.
+    description: P0 step 3 (agent). The task touches a direct publish or an in-process handler chain -> applies (P4); reaction in the same context and transaction -> stop, explicit call; no problems -> stop; else applies.
     depends_on: [p0-2-check-problems]
     inputs:
       - {name: problems, type: "list[integer]"}
       - {name: task, type: object}
+      - {name: violations, type: "list[object]"}
     outputs:
-      - {name: applies, type: boolean}
+      - {name: applies, type: boolean, description: "True when a later procedure runs; false means stop."}
   - name: p1-1-name-event
     description: P1 step 1 (agent). Name the fact in past tense; add it to paths.eventList first.
     depends_on: [p0-3-decide-applies]

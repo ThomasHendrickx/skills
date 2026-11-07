@@ -20,7 +20,7 @@ Compiled following the `aip` compiler skill from [zach-blumenfeld/aip](https://g
 - Node names are `p<procedure>-<step>-<slug>`; the description opens with `P<n> step <m> (script|agent)`.
 - `p0-1-scan-infra-imports` is the sole entry node. P1, P2, P3 and P4 begin after `p0-3-decide-applies`.
 - `depends_on` carries order; typed inputs and outputs carry data. Output names are unique.
-- Conditional stops and hand-offs stay in prose, not edges: P0 step 3 (stop on a same-context, same-transaction reaction or no problems), P1 step 4 (reuse an existing relay), P2 step 1 (stop with no consumer), P4 step 2 (a direct publish goes through P1).
+- Conditional stops and hand-offs stay in prose, not edges: P0 step 3 (a direct publish or in-process handler chain the task touches applies through P4, checked first; then stop on a same-context, same-transaction reaction or no problems), P1 step 4 (reuse an existing relay), P2 step 1 (stop with no consumer), P4 step 2 (a direct publish goes through P1).
 
 ## Deliberate choices
 

@@ -19,7 +19,7 @@ Run every scenario independently against a fresh fixture with both `SKILL.md` an
 | S4.1 | script | `direct-publish` | Given two use cases publishing directly, one touched by the task, When P4 completes, Then the touched one writes to the outbox and the other is unchanged. |
 | S4.2 | agent | `handler-chain` | Given an in-process handler doing a same-transaction update, When P4 completes, Then it is an explicit call in the use case. |
 
-S0.1 is the intentional no-problem control. Every other fixture carries a real problem signal: `direct-publish` publishes before the save, `invoice-paid` needs another context to react, `no-consumer` has other teams asking what happened, `consumer` double-applies, reorders and swallows failures, `handler-chain` also mails a receipt from an in-process handler before commit.
+S0.1 is the intentional no-problem control. A scenario S1.x to S4.x whose run P0 stopped (applies not true) is NOT RUN, whatever its check says: its procedure never ran. Every other fixture carries a real problem signal: `direct-publish` publishes before the save, `invoice-paid` needs another context to react, `no-consumer` mails the payment receipt before commit and has other teams asking what happened, with no team subscribing, `consumer` double-applies, reorders and swallows failures, `handler-chain` also mails a receipt from an in-process handler before commit.
 
 How the script checks work, beyond the obvious:
 

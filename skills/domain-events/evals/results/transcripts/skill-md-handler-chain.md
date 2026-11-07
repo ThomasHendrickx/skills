@@ -1,6 +1,13 @@
-# Agent report
-- Ran P0 only. Script step: `python3 check_direction.py` (core imports no infra module) gave no violations. A scan of `src/sales/core` and `src/shipping/core` for `src.infra.bus` / `src.infra.mail` imports found none.
-- Problems 1-4: none apply to the task. Storing the last-payment date on the customer account when an invoice is paid is a reaction in the same context (sales) and the same transaction. So P0 says stop and use an explicit call. `applies` is false, so P4 was not run.
-- Result written to repo/RESULT.json: {"violations": [], "problems": [], "applies": false}.
-- No code changed. Not done: the task itself. The skill's guidance is to make it an explicit call in `pay_invoice`, not another `HANDLERS` entry.
-- Side observation, outside the task: `send_payment_receipt` sends mail inside the transaction, before commit (failure mode 2). The task does not touch it, so it was left alone.
+# Report
+
+P0 (RESULT.json: violations [], problems [], applies true)
+- Script step: core imports no infra module (check_direction.py reported "direction ok"), so violations is empty.
+- The task is same-context and same-transaction, with no problems 1-4. It does add to the existing in-process InvoicePaid handler chain, so P0 step 3 gives applies = true (P4).
+
+P4
+- Scope: the credit_customer_account handler in the InvoicePaid chain. send_payment_receipt (a mail send before commit) is not touched by the task, so I left it unchanged and did not fix it.
+- Replaced that handler with an explicit call in pay_invoice: it records the payment on the account and saves it, in the same transaction. Removed credit_customer_account from handlers.py and HANDLERS, since nothing else used it.
+- Stored the date: schema.sql column customer_accounts.last_payment_on; CustomerAccount.last_payment_on, with record_payment(amount, on); PgAccountRepository get/save.
+- Extended tests/test_accounts.py to assert the date.
+- Ran check_direction.py (ok) and the unittest suite (6 tests, OK).
+- Could not do: nothing. The existing pre-commit receipt mail remains as a known issue outside this task's scope.

@@ -11,7 +11,7 @@ works each run directory (see PROMPT.md); `check` then runs the script scenarios
 against a fresh check database per scenario, prints the evidence for the judged scenarios (S1.3, S2.2,
 S4.2), reads their verdicts from WORK/<form>/JUDGE.json and reports PASS, FAIL or NOT RUN per scenario
 and form. S0.2 and S0.3 are read from the agent's P0 output. A run without an agent report is NOT RUN,
-never PASS.
+never PASS; so is a scenario in GATED whose run P0 stopped, since its procedure never ran.
 """
 import ast
 import hashlib
@@ -39,11 +39,14 @@ RUNS = {
     "order-total": ("P0 only", ["S0.1"]),
     "direct-publish": ("P0, then P4", ["S0.2", "S4.1"]),
     "invoice-paid": ("P0, then P1, then P2", ["S0.3", "S1.1", "S1.2", "S1.3", "S2.1", "S2.2"]),
-    "no-consumer": ("P0, then P2", ["S2.3"]),
+    "no-consumer": ("P0, then P1, then P2", ["S2.3"]),
     "consumer": ("P0, then P3", ["S3.1", "S3.2", "S3.3"]),
     "handler-chain": ("P0, then P4", ["S4.2"]),
 }
 SCENARIOS = sorted((s for _, scenarios in RUNS.values() for s in scenarios), key=lambda s: tuple(int(n) for n in s[1:].split(".")))
+# S<n>.x tests procedure P<n>, which runs only after P0 applies: if P0 stopped, the procedure never ran, so the
+# scenario is NOT RUN (a hollow pass blocks like a missing run), whatever its check would say
+GATED = {s: f"P{s[1:].split('.')[0]}" for s in SCENARIOS if not s.startswith("S0.")}
 JUDGED = {
     "S1.3": "Then the event is a past-tense fact and listed in paths.eventList.",
     "S2.2": "Then the payload holds only the fields shipping's need names; any carried state is declared.",
@@ -420,7 +423,11 @@ def check(work, admin):
                 continue
             base_dsn, _ = check_db(admin, form, run, base, "_base")
             base_tables = tables(base_dsn)
+            p0 = result(repo) or {}
             for sid in scenarios:
+                if sid in GATED and p0.get("applies") is not True:
+                    table[(sid, form)] = ("NOT RUN", f"P0 stopped (applies={p0.get('applies')}), so {GATED[sid]} never ran")
+                    continue
                 if sid in CHECKS:
                     dsn, error = check_db(admin, form, run, repo, f"_{sid}")
                     if error:
