@@ -1,0 +1,241 @@
+diff -ruN -x __pycache__ -x '*.pyc' -x database.url base/PROJECTION.json repo/PROJECTION.json
+--- base/PROJECTION.json	1970-01-01 01:00:00.000000000 +0100
++++ repo/PROJECTION.json	2026-11-07 09:26:04.086664999 +0100
+@@ -0,0 +1 @@
++{"table": "order_shipping_status", "rebuild": "python3 -m src.projections.order_shipping rebuild", "process": "python3 -m src.projections.order_shipping process"}
+diff -ruN -x __pycache__ -x '*.pyc' -x database.url base/RESULT.json repo/RESULT.json
+--- base/RESULT.json	1970-01-01 01:00:00.000000000 +0100
++++ repo/RESULT.json	2026-11-07 09:25:31.885990853 +0100
+@@ -0,0 +1 @@
++{"violations": [], "problems": [3], "applies": true}
+diff -ruN -x __pycache__ -x '*.pyc' -x database.url base/schema.sql repo/schema.sql
+--- base/schema.sql	2026-11-07 09:24:44.345471914 +0100
++++ repo/schema.sql	2026-11-07 09:25:31.905990651 +0100
+@@ -35,3 +35,30 @@
+     carrier text,
+     dispatched_on date
+ );
++
++-- Shipping's outbox: written in the same transaction as the shipment change.
++CREATE TABLE shipping_outbox (
++    id bigserial PRIMARY KEY,
++    event_id text NOT NULL UNIQUE,
++    event_type text NOT NULL,
++    shipment_id text NOT NULL,
++    order_id text NOT NULL,
++    status text NOT NULL,
++    carrier text,
++    dispatched_on date,
++    version integer NOT NULL,
++    published_at timestamptz
++);
++
++-- Orders-side projection of shipment status, fed by shipping's events. Never joined to shipments.
++-- Update trigger: outbox consumer. Idempotency key: (order_id, shipment_version) - an event only applies if newer.
++-- Staleness bound: events are processed right after the shipping command commits; a failed run is retried
++-- by the process command (scheduled every minute), so staleness is at most that interval.
++-- Rebuild: python3 -m src.queries.order_shipping_projection rebuild
++CREATE TABLE order_shipping_status (
++    order_id text PRIMARY KEY,
++    status text NOT NULL,
++    carrier text,
++    dispatched_on date,
++    shipment_version integer NOT NULL
++);
+diff -ruN -x __pycache__ -x '*.pyc' -x database.url base/src/main.py repo/src/main.py
+--- base/src/main.py	2026-11-07 09:24:44.345471914 +0100
++++ repo/src/main.py	2026-11-07 09:25:51.875788568 +0100
+@@ -20,10 +20,24 @@
+ def create_shipment(shipment_id, order_id):
+     from src.shipping.adapters.pg import ShippingUnitOfWork
+     from src.shipping.core.commands import create_shipment as _create
+-    return _create(ShippingUnitOfWork(), shipment_id, order_id)
++    result = _create(ShippingUnitOfWork(), shipment_id, order_id)
++    _apply_shipping_events()
++    return result
+ 
+ 
+ def dispatch_shipment(shipment_id, carrier, on):
+     from src.shipping.adapters.pg import ShippingUnitOfWork
+     from src.shipping.core.commands import dispatch_shipment as _dispatch
+-    return _dispatch(ShippingUnitOfWork(), shipment_id, carrier, on)
++    result = _dispatch(ShippingUnitOfWork(), shipment_id, carrier, on)
++    _apply_shipping_events()
++    return result
++
++
++def _apply_shipping_events():
++    """Read-your-own-writes: apply the outbox right after the command commits. If it fails the event stays
++    pending and the scheduled `process` run picks it up."""
++    from src.projections.order_shipping import process
++    try:
++        process()
++    except Exception:
++        pass
+diff -ruN -x __pycache__ -x '*.pyc' -x database.url base/src/projections/order_shipping.py repo/src/projections/order_shipping.py
+--- base/src/projections/order_shipping.py	1970-01-01 01:00:00.000000000 +0100
++++ repo/src/projections/order_shipping.py	2026-11-07 09:25:51.862788700 +0100
+@@ -0,0 +1,47 @@
++"""Orders-side projection of shipment status, fed by Shipping's published events (table shipping_outbox).
++
++Idempotent: an event applies only if its version is newer than the stored one, so redelivery changes nothing.
++Run `python3 -m src.projections.order_shipping process` to apply pending events, `... rebuild` to rebuild from
++the full event history.
++"""
++import sys
++
++from src.db import connect
++
++APPLY = """
++INSERT INTO order_shipping_status (order_id, status, carrier, dispatched_on, shipment_version)
++VALUES (%s, %s, %s, %s, %s)
++ON CONFLICT (order_id) DO UPDATE
++SET status = EXCLUDED.status, carrier = EXCLUDED.carrier, dispatched_on = EXCLUDED.dispatched_on,
++    shipment_version = EXCLUDED.shipment_version
++WHERE order_shipping_status.shipment_version < EXCLUDED.shipment_version
++"""
++
++EVENTS = "SELECT id, order_id, status, carrier, dispatched_on, version FROM shipping_outbox {where} ORDER BY id"
++
++
++def process() -> int:
++    """Apply events not yet published. Each event is applied and marked in one transaction."""
++    done = 0
++    with connect() as conn:
++        for id_, order_id, status, carrier, on, version in conn.execute(EVENTS.format(where="WHERE published_at IS NULL")).fetchall():
++            with conn.transaction():
++                conn.execute(APPLY, (order_id, status, carrier, on, version))
++                conn.execute("UPDATE shipping_outbox SET published_at = now() WHERE id = %s", (id_,))
++            done += 1
++    return done
++
++
++def rebuild() -> int:
++    """Empty the projection and replay every event in order."""
++    with connect() as conn:
++        with conn.transaction():
++            conn.execute("DELETE FROM order_shipping_status")
++            for _, order_id, status, carrier, on, version in conn.execute(EVENTS.format(where="")).fetchall():
++                conn.execute(APPLY, (order_id, status, carrier, on, version))
++            conn.execute("UPDATE shipping_outbox SET published_at = coalesce(published_at, now())")
++    return 0
++
++
++if __name__ == "__main__":
++    {"process": process, "rebuild": rebuild}[sys.argv[1]]()
+diff -ruN -x __pycache__ -x '*.pyc' -x database.url base/src/queries/my_orders.py repo/src/queries/my_orders.py
+--- base/src/queries/my_orders.py	2026-11-07 09:24:44.346471904 +0100
++++ repo/src/queries/my_orders.py	2026-11-07 09:25:51.875788568 +0100
+@@ -20,7 +20,7 @@
+        (SELECT sum(l.quantity * l.unit_price_cents) FROM order_lines l WHERE l.order_id = o.id) AS total_cents,
+        coalesce(s.status, 'pending'), s.carrier, s.dispatched_on
+ FROM orders o
+-LEFT JOIN shipments s ON s.order_id = o.id
++LEFT JOIN order_shipping_status s ON s.order_id = o.id
+ WHERE o.customer_id = %(customer_id)s
+ ORDER BY o.placed_on DESC, o.number DESC
+ LIMIT %(limit)s OFFSET %(offset)s
+diff -ruN -x __pycache__ -x '*.pyc' -x database.url base/src/shipping/adapters/pg.py repo/src/shipping/adapters/pg.py
+--- base/src/shipping/adapters/pg.py	2026-11-07 09:24:44.346471904 +0100
++++ repo/src/shipping/adapters/pg.py	2026-11-07 09:25:51.858788740 +0100
+@@ -18,10 +18,21 @@
+ 
+     def add(self, shipment):
+         self.conn.execute("INSERT INTO shipments (id, order_id, status) VALUES (%s, %s, %s)", (shipment.id, shipment.order_id, shipment.status))
++        self._publish(shipment)
+ 
+     def save(self, shipment):
+         self.conn.execute("UPDATE shipments SET status = %s, carrier = %s, dispatched_on = %s WHERE id = %s",
+                           (shipment.status, shipment.carrier, shipment.dispatched_on, shipment.id))
++        self._publish(shipment)
++
++    def _publish(self, shipment):
++        """Outbox write in the command's transaction: the event other contexts build their read models from."""
++        version = 1 if shipment.status == "pending" else 2
++        self.conn.execute(
++            "INSERT INTO shipping_outbox (event_id, event_type, shipment_id, order_id, status, carrier, dispatched_on, version) "
++            "VALUES (%s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT (event_id) DO NOTHING",
++            (f"{shipment.id}:{version}", f"shipment.{shipment.status}", shipment.id, shipment.order_id,
++             shipment.status, shipment.carrier, shipment.dispatched_on, version))
+ 
+ 
+ class ShippingUnitOfWork:
+diff -ruN -x __pycache__ -x '*.pyc' -x database.url base/tests/test_my_orders.py repo/tests/test_my_orders.py
+--- base/tests/test_my_orders.py	2026-11-07 09:24:44.347471894 +0100
++++ repo/tests/test_my_orders.py	2026-11-07 09:25:51.879788528 +0100
+@@ -16,3 +16,20 @@
+         rows = my_orders_page("ann")["rows"]
+         self.assertEqual([(r["number"], r["shipping_status"], r["carrier"]) for r in rows],
+                          [("N-o2", "pending", None), ("N-o1", "dispatched", "bpost")])
++
++    def test_dispatch_visible_immediately(self):
++        self.customer("ann")
++        self.order("o1", "ann")
++        main.create_shipment("s1", "o1")
++        main.dispatch_shipment("s1", "dhl", date(2026, 3, 3))
++        row = my_orders_page("ann")["rows"][0]
++        self.assertEqual((row["shipping_status"], row["carrier"], row["dispatched_on"]), ("dispatched", "dhl", date(2026, 3, 3)))
++
++    def test_order_without_shipment_is_pending(self):
++        self.customer("ann")
++        self.order("o1", "ann")
++        self.assertEqual(my_orders_page("ann")["rows"][0]["shipping_status"], "pending")
++
++    def test_query_does_not_read_shipments_table(self):
++        import pathlib
++        self.assertNotIn("shipments", pathlib.Path("src/queries/my_orders.py").read_text().replace("order_shipping_status", ""))
+diff -ruN -x __pycache__ -x '*.pyc' -x database.url base/tests/test_order_shipping_projection.py repo/tests/test_order_shipping_projection.py
+--- base/tests/test_order_shipping_projection.py	1970-01-01 01:00:00.000000000 +0100
++++ repo/tests/test_order_shipping_projection.py	2026-11-07 09:25:51.879788528 +0100
+@@ -0,0 +1,51 @@
++from datetime import date
++
++from src import main
++from src.db import connect
++from src.projections import order_shipping
++from tests.support import DbTest
++
++
++def rows():
++    with connect() as conn:
++        return conn.execute("SELECT order_id, status, carrier, dispatched_on, shipment_version FROM order_shipping_status ORDER BY order_id").fetchall()
++
++
++class ShippingProjectionTest(DbTest):
++    def setUp(self):
++        super().setUp()
++        self.customer("ann")
++        self.order("o1", "ann")
++        self.order("o2", "ann")
++        main.create_shipment("s1", "o1")
++        main.create_shipment("s2", "o2")
++        main.dispatch_shipment("s1", "bpost", date(2026, 3, 3))
++
++    def test_changes_become_rows(self):
++        self.assertEqual(rows(), [("o1", "dispatched", "bpost", date(2026, 3, 3), 2), ("o2", "pending", None, None, 1)])
++
++    def test_event_applied_twice_changes_nothing(self):
++        before = rows()
++        with connect() as conn:
++            conn.execute("UPDATE shipping_outbox SET published_at = NULL")
++        order_shipping.process()
++        order_shipping.process()
++        self.assertEqual(rows(), before)
++
++    def test_stale_event_does_not_overwrite_newer(self):
++        with connect() as conn:
++            conn.execute("UPDATE shipping_outbox SET published_at = NULL WHERE version = 1")
++        order_shipping.process()
++        self.assertEqual(rows()[0][1], "dispatched")
++
++    def test_rebuild_equals_incremental(self):
++        before = rows()
++        order_shipping.rebuild()
++        self.assertEqual(rows(), before)
++
++    def test_pending_events_apply_on_process(self):
++        with connect() as conn:
++            conn.execute("DELETE FROM order_shipping_status")
++            conn.execute("UPDATE shipping_outbox SET published_at = NULL")
++        self.assertEqual(order_shipping.process(), 3)
++        self.assertEqual(len(rows()), 2)

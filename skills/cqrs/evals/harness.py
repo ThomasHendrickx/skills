@@ -172,7 +172,8 @@ def result(repo):
         paths = set()
         for v in data.get("violations", []):
             p = v.get("path", v.get("file", "")) if isinstance(v, dict) else str(v)
-            paths.add(re.sub(r"^.*?/repo/", "", p).lstrip("./"))
+            p = re.sub(r"^.*?/repo/", "", p).lstrip("./").split()  # a path, or "path imports x (rule n)"
+            paths.add(p[0] if p else "")
         data["violations"] = paths
         data["problems"] = {int(p) for p in data.get("problems", [])}
         return data
@@ -229,6 +230,14 @@ def imports(path):
 
 def strings(path):
     return [n.value for n in ast.walk(tree(path)) if isinstance(n, ast.Constant) and isinstance(n.value, str)]
+
+
+def reaches_queries(repo, page):
+    """The page imports src.queries itself, or goes through the composition root, which imports it."""
+    direct = any(i.startswith(("src.queries", "..queries")) for i in imports(page))
+    via_root = any(i in ("src", "src.main") for i in imports(page)) and \
+        any(i.startswith("src.queries") for i in imports(repo / companion(repo, "paths.compositionRoot")))
+    return direct or via_root
 
 
 def scan(repo):
@@ -303,11 +312,11 @@ def s1_1(repo, base, ctx):
     types = {m: read_types(repo / "src/queries" / m) for m in modules}
     domain = [v for v in scan(repo) if v["rule"] == 4]
     page = repo / "src/web/staff_pages.py"
-    wired = any(i.startswith("src.queries") or i.startswith("..queries") for i in imports(page))
+    wired = reaches_queries(repo, page)
     no_load_all = "list_all" not in calls(page)
     ok_tests, note = tests_pass(repo, ctx["dsn"])
     ok = bool(modules) and all(types.values()) and not domain and wired and no_load_all and ok_tests
-    return ok, f"query modules={modules} read types={types} query imports of domain={domain} page uses src.queries={wired} page still loads all orders={not no_load_all} {note}"
+    return ok, f"query modules={modules} read types={types} query imports of domain={domain} page reaches src.queries={wired} page still loads all orders={not no_load_all} {note}"
 
 
 def s1_3(repo, base, ctx):
@@ -442,13 +451,13 @@ def s2_4(repo, base, ctx):
 def s3_1(repo, base, ctx):
     touched = repo / "src/web/customer_pages.py"
     uses_finder = "find_recent_for_customer" in calls(touched)
-    uses_query = any(i.startswith(("src.queries", "..queries")) for i in imports(touched))
+    uses_query = reaches_queries(repo, touched)
     untouched_same = digest(repo / "src/web/staff_pages.py") == digest(base / "src/web/staff_pages.py")
     finder = "find_recent_for_customer" in {m for _, m in methods(repo / "src/core/ports.py")} and \
         "find_recent_for_customer" in {m for _, m in methods(repo / "src/adapters/pg_orders.py")}
     ok_tests, note = tests_pass(repo, ctx["dsn"])
     ok = not uses_finder and uses_query and untouched_same and finder and ok_tests
-    return ok, f"touched page calls the finder={uses_finder} imports src.queries={uses_query} untouched page unchanged={untouched_same} finder still in port and adapter={finder} {note}"
+    return ok, f"touched page calls the finder={uses_finder} reaches src.queries={uses_query} untouched page unchanged={untouched_same} finder still in port and adapter={finder} {note}"
 
 
 def s4_2(repo, base, ctx):

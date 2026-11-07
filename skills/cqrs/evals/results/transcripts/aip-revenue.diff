@@ -1,0 +1,152 @@
+diff -ruN -x __pycache__ -x '*.pyc' -x database.url base/PROJECTION.json repo/PROJECTION.json
+--- base/PROJECTION.json	1970-01-01 01:00:00.000000000 +0100
++++ repo/PROJECTION.json	2026-11-07 09:25:40.998898637 +0100
+@@ -0,0 +1 @@
++{"table": "monthly_revenue_projection", "rebuild": "python3 -m src.rebuild_revenue_projection", "process": null}
+diff -ruN -x __pycache__ -x '*.pyc' -x database.url base/RESULT.json repo/RESULT.json
+--- base/RESULT.json	1970-01-01 01:00:00.000000000 +0100
++++ repo/RESULT.json	2026-11-07 09:25:39.648912298 +0100
+@@ -0,0 +1 @@
++{"violations": [], "problems": [1, 2], "applies": true}
+diff -ruN -x __pycache__ -x '*.pyc' -x database.url base/schema.sql repo/schema.sql
+--- base/schema.sql	2026-11-07 09:24:44.002475385 +0100
++++ repo/schema.sql	2026-11-07 09:25:39.649912288 +0100
+@@ -34,3 +34,11 @@
+     issued_on date NOT NULL,
+     voided boolean NOT NULL DEFAULT false
+ );
++
++-- Projection for the monthly revenue report: non-voided invoices per issue month.
++-- Updated in the same transaction as issue/void (PgInvoiceRepository); rebuild: python3 -m src.rebuild_revenue_projection
++CREATE TABLE monthly_revenue_projection (
++    month date PRIMARY KEY,
++    revenue_cents bigint NOT NULL,
++    invoices integer NOT NULL
++);
+diff -ruN -x __pycache__ -x '*.pyc' -x database.url base/src/adapters/pg_invoices.py repo/src/adapters/pg_invoices.py
+--- base/src/adapters/pg_invoices.py	2026-11-07 09:24:44.002475385 +0100
++++ repo/src/adapters/pg_invoices.py	2026-11-07 09:25:39.670912075 +0100
+@@ -5,6 +5,15 @@
+     pass
+ 
+ 
++BUMP = """
++INSERT INTO monthly_revenue_projection (month, revenue_cents, invoices)
++VALUES (date_trunc('month', %(issued_on)s::date)::date, %(amount)s, %(count)s)
++ON CONFLICT (month) DO UPDATE
++SET revenue_cents = monthly_revenue_projection.revenue_cents + EXCLUDED.revenue_cents,
++    invoices = monthly_revenue_projection.invoices + EXCLUDED.invoices
++"""
++
++
+ class PgInvoiceRepository:
+     def __init__(self, conn):
+         self.conn = conn
+@@ -18,6 +27,17 @@
+     def add(self, invoice):
+         self.conn.execute("INSERT INTO invoices (id, customer_id, amount_cents, issued_on, voided) VALUES (%s, %s, %s, %s, %s)",
+                           (invoice.id, invoice.customer_id, invoice.amount_cents, invoice.issued_on, invoice.voided))
++        if not invoice.voided:
++            self._bump(invoice.issued_on, invoice.amount_cents, 1)
+ 
+     def save(self, invoice):
+-        self.conn.execute("UPDATE invoices SET voided = %s WHERE id = %s", (invoice.voided, invoice.id))
++        # Only a real voided transition moves the projection, so a repeated save cannot double-update it.
++        changed = self.conn.execute(
++            "UPDATE invoices SET voided = %s WHERE id = %s AND voided <> %s RETURNING amount_cents, issued_on",
++            (invoice.voided, invoice.id, invoice.voided)).fetchone()
++        if changed:
++            sign = -1 if invoice.voided else 1
++            self._bump(changed[1], sign * changed[0], sign)
++
++    def _bump(self, issued_on, amount, count):
++        self.conn.execute(BUMP, {"issued_on": issued_on, "amount": amount, "count": count})
+diff -ruN -x __pycache__ -x '*.pyc' -x database.url base/src/queries/monthly_revenue.py repo/src/queries/monthly_revenue.py
+--- base/src/queries/monthly_revenue.py	2026-11-07 09:24:44.004475365 +0100
++++ repo/src/queries/monthly_revenue.py	2026-11-07 09:25:39.670912075 +0100
+@@ -12,11 +12,11 @@
+ 
+ 
+ SQL = """
+-SELECT date_trunc('month', issued_on)::date AS month, sum(amount_cents) AS revenue_cents, count(*) AS invoices
+-FROM invoices
+-WHERE NOT voided AND issued_on >= (date_trunc('month', %(today)s::date) - interval '23 months')::date AND issued_on <= %(today)s
+-GROUP BY 1
+-ORDER BY 1 DESC
++SELECT month, revenue_cents, invoices
++FROM monthly_revenue_projection
++WHERE invoices > 0 AND month >= (date_trunc('month', %(today)s::date) - interval '23 months')::date
++  AND month <= %(today)s
++ORDER BY month DESC
+ """
+ 
+ 
+diff -ruN -x __pycache__ -x '*.pyc' -x database.url base/src/rebuild_revenue_projection.py repo/src/rebuild_revenue_projection.py
+--- base/src/rebuild_revenue_projection.py	1970-01-01 01:00:00.000000000 +0100
++++ repo/src/rebuild_revenue_projection.py	2026-11-07 09:25:39.650912277 +0100
+@@ -0,0 +1,28 @@
++"""Rebuild monthly_revenue_projection from invoices: python3 -m src.rebuild_revenue_projection"""
++from src.db import connect
++
++DDL = """
++CREATE TABLE IF NOT EXISTS monthly_revenue_projection (
++    month date PRIMARY KEY,
++    revenue_cents bigint NOT NULL,
++    invoices integer NOT NULL
++)
++"""
++
++REBUILD = """
++INSERT INTO monthly_revenue_projection (month, revenue_cents, invoices)
++SELECT date_trunc('month', issued_on)::date, sum(amount_cents), count(*) FROM invoices WHERE NOT voided GROUP BY 1
++"""
++
++
++def rebuild():
++    with connect() as conn:
++        with conn.transaction():
++            conn.execute(DDL)
++            conn.execute("LOCK TABLE monthly_revenue_projection IN EXCLUSIVE MODE")
++            conn.execute("DELETE FROM monthly_revenue_projection")
++            conn.execute(REBUILD)
++
++
++if __name__ == "__main__":
++    rebuild()
+diff -ruN -x __pycache__ -x '*.pyc' -x database.url base/tests/test_monthly_revenue.py repo/tests/test_monthly_revenue.py
+--- base/tests/test_monthly_revenue.py	2026-11-07 09:24:44.004475365 +0100
++++ repo/tests/test_monthly_revenue.py	2026-11-07 09:25:39.677912004 +0100
+@@ -1,6 +1,8 @@
+ from datetime import date
+ 
+ from src import main
++from src.db import connect
++from src.rebuild_revenue_projection import rebuild
+ from src.queries.monthly_revenue import monthly_revenue
+ from tests.support import DbTest
+ 
+@@ -27,3 +29,24 @@
+ 
+     def test_empty(self):
+         self.assertEqual(monthly_revenue(date(2026, 11, 7)), [])
++
++    def test_void_twice_does_not_double_update(self):
++        main.issue_invoice("a", "ann", 1000, date(2026, 11, 1))
++        main.issue_invoice("b", "ann", 400, date(2026, 11, 2))
++        main.void_invoice("a")
++        with self.assertRaises(Exception):
++            main.void_invoice("a")
++        self.assertEqual([(r.revenue_cents, r.invoices) for r in monthly_revenue(date(2026, 11, 7))], [(400, 1)])
++
++    def test_rebuild_equals_incremental(self):
++        main.issue_invoice("a", "ann", 1000, date(2026, 10, 1))
++        main.issue_invoice("b", "ann", 400, date(2026, 11, 2))
++        main.issue_invoice("c", "ann", 50, date(2026, 11, 3))
++        main.void_invoice("c")
++        main.void_invoice("a")
++        with connect() as conn:
++            before = conn.execute("SELECT month, revenue_cents, invoices FROM monthly_revenue_projection WHERE invoices > 0 ORDER BY 1").fetchall()
++        rebuild()
++        with connect() as conn:
++            after = conn.execute("SELECT month, revenue_cents, invoices FROM monthly_revenue_projection ORDER BY 1").fetchall()
++        self.assertEqual(before, after)

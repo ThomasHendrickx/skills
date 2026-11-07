@@ -1,0 +1,11 @@
+# Report
+- P0: the skill has no scripts, so I checked by hand. src/queries imports nothing from src/core, and no command handler imports queries (violations: none). Problems 1 and 3 apply (a join across contexts, and another context's data), so applies=true. Written to repo/RESULT.json.
+- P2: the evidence is that the page needs another context's data. Level 2, an outbox-fed projection:
+  - schema.sql: added `shipping_outbox`, `order_shipping_status` (the projection) and `order_shipping_processed` (idempotency on event_id). The spec comments are in schema.sql.
+  - Shipping commands (create and dispatch) now write an event to the outbox in their own transaction.
+  - New src/projections/order_shipping.py: an idempotent updater (`apply_pending`) and a rebuild that replays the outbox. A dispatched row is never regressed to pending.
+  - The my_orders query now reads `order_shipping_status` and no longer touches `shipments`.
+  - Read-your-own-writes: src/main.py applies pending events right after each shipping command commits, so the page shows dispatched before the dispatch email can be sent. This is synchronous for now, and `python3 -m src.projections.order_shipping` catches up any events left pending.
+  - Tests added: the page works with the `shipments` table dropped; redelivery causes no double update; rebuild equals incremental.
+- Checks: check_direction.py passes and all 5 tests pass. PROJECTION.json written.
+- Not done: the email sender itself isn't in the repo, so I couldn't wire it. Also, only the rebuild was run against the live DB, and only as a smoke test.
