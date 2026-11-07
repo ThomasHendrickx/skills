@@ -2,7 +2,7 @@
 """Validate aip/SKILL.md against its bundled schema and check the graph.
 
 Needs pyyaml and jsonschema. The pinned-compiler validate.py run is recorded separately in results/validate-aip.txt.
-Checks: bundled schema, source/ORIGINAL_SKILL.md equals SKILL.md, P0..P3 step counts (3, 7, 5, 4),
+Checks: bundled schema, source/ORIGINAL_SKILL.md equals SKILL.md, P0..P3 step counts (3, 7, 5, 5),
 P0 step 1 is the only entry node, depends_on targets exist and form a DAG, and every input is
 produced upstream or is a companion/task input.
 """
@@ -18,7 +18,7 @@ ROOT = Path(__file__).parents[1]
 AIP = ROOT / "aip"
 COMPANION_INPUTS = {"paths.domain", "paths.ports", "paths.adapters", "paths.compositionRoot",
                     "checks.dependencyDirection", "checks.contractTests", "infraModules", "task"}
-COUNTS = {"p0": 3, "p1": 7, "p2": 5, "p3": 4}
+COUNTS = {"p0": 3, "p1": 7, "p2": 5, "p3": 5}
 
 
 def main():

@@ -1,7 +1,12 @@
 # Report
-- P0: ran scan_port_types.py (no violations). Found problems 3 and 4 (find_by has no page request and takes a generic dict criteria). RESULT.json: violations [], problems [3,4], applies true.
-- P3: the touched code is send_reminders, which called generic find_by. I added a need-named finder find_overdue_unpaid(today, PageRequest) to the port and to both adapters. It returns only status "placed" orders, so paid and draft orders are excluded. The database pages the results (LIMIT/OFFSET). send_reminders now loops over pages.
-- Added src/core/paging.py (PageRequest) and contract tests for the finder (both adapters) plus a caller test for paid/draft.
-- The generic find_by stays because draft_cleanup (untouched) still calls it, so step 3 removed nothing.
-- run_check.py: direction check and 17 tests pass.
-- Not done: P1 and P2 were not requested.
+
+P0: scan_port_types.py on src/core/ports with sqlite3 gave no violations. Problem 3 holds (find_by returns an unbounded list). Problem 4 is not established by the script. applies = true. RESULT.json written: {"violations": [], "problems": [3], "applies": true}.
+
+P3: scope was only the find_by call in send_reminders (src/core/reminders.py). The find_by call in draft_cleanup.py is untouched, so find_by stays and the generic method was not removed.
+Changes:
+- Added src/core/paging.py (PageRequest).
+- Added the need-named finder find_placed_due_before(due_before, page) to the Orders port, the in-memory adapter and the sqlite adapter. It returns only status "placed" orders, and sqlite applies LIMIT/OFFSET.
+- send_reminders now uses that finder and pages through all results.
+- Added contract tests (skips paid and draft; paging) and tightened the callers test so paid orders are not reminded.
+Checks: check_direction.py and the unittest suite (16 tests) pass via run_check.py.
+Nothing I could not do.

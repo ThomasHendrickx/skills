@@ -72,7 +72,8 @@ Companion inputs: `paths.domain`, `paths.ports`, `paths.adapters`, `paths.compos
 
 ## P3 Replace a generic repository
 
-1. agent: list the generic calls the task touches.
-2. agent: replace each with a need-named finder through P2.
-3. agent: remove a generic method only when no caller is left.
-4. script: run `checks.contractTests` and `checks.dependencyDirection`.
+1. agent: scope = the generic calls the task touches; every other caller stays unchanged -> scope list.
+2. agent: list the generic calls the task touches.
+3. agent: replace each with a need-named finder through P2.
+4. agent: remove a generic method only when no caller is left.
+5. script: run `checks.contractTests` and `checks.dependencyDirection`.
