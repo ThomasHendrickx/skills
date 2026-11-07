@@ -21,6 +21,7 @@ This installs into `.agents/skills/` (read by Codex) and links each skill into `
 - `domain-modelling`: ports and adapters, invariants, use cases, events.
 - `ports-and-adapters`: applies domain-owned ports and boundary adapters when business rules need infrastructure, test seams, or multiple entry points.
 - `repository`: aggregate-root repositories, need-named finders, contract tests, and paging.
+- `cqrs`: query ports returning read types, projections only on measured need, intent-named commands.
 - `aip-skill-writing`: writing a SKILL.md that compiles cleanly to AIP and passes its scenarios on both forms.
 - `web-frontend`: feature structure, state, React rules.
 - `performance`: scale targets and budget, API design, the toolbelt, live updates, proof at scale, UI states.
