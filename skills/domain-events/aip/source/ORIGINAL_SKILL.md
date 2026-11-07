@@ -56,7 +56,7 @@ Companion inputs: `paths.domain`, `paths.eventList`, `paths.integrationEvents`, 
 
 1. script: parse `paths.domain` and use cases for imports of bus, mail or third-party clients from `infraModules` -> `violations[]` (rule 2).
 2. agent: check the task for problems 1-4 -> `problems[]`.
-3. agent: reaction in the same context and transaction -> stop, explicit call; no problems -> stop; else -> `applies`.
+3. agent: the task touches a direct publish or an in-process handler chain -> `applies` (P4); reaction in the same context and transaction -> stop, explicit call; no problems -> stop; else -> `applies`.
 
 ## P1 Record and publish an event
 

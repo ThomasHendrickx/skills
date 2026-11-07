@@ -9,11 +9,11 @@
  ],
  "S4.1|skill-md": [
   "PASS",
-  "rolled-back payment: raised RaiseException, tables changed=[]; committed payment: committed, rows gained in new tables={'sales_outbox': 1}; cancel_invoice.py unchanged=True"
+  "rolled-back payment: raised RaiseException, tables changed=[]; committed payment: committed, rows gained in new tables={'outbox': 1}; cancel_invoice.py unchanged=True"
  ],
  "S0.3|skill-md": [
   "PASS",
-  "problems=[1, 2] applies=True (agent's P0 output)"
+  "problems=[1] applies=True (agent's P0 output)"
  ],
  "S1.1|skill-md": [
   "PASS",
@@ -25,19 +25,19 @@
  ],
  "S1.3|skill-md": [
   "PASS",
-  "InvoicePaid (src/sales/core/events.py) is a past-tense fact, recorded by Invoice.pay, and docs/event-list.md (paths.eventList) now lists 'InvoicePaid: a customer paid an invoice'."
+  "InvoicePaid is a past-tense event in src/sales/core/events.py and is listed in docs/event-list.md as 'a customer paid an invoice'."
  ],
  "S2.1|skill-md": [
   "PASS",
-  "contract files=['sales.py'] versioned={'sales.py': True} shipping imports of sales=[]"
+  "contract files=['invoice_paid.py'] versioned={'invoice_paid.py': True} shipping imports of sales=[]"
  ],
  "S2.2|skill-md": [
   "PASS",
-  "src/contracts/sales.py InvoicePaidV1 carries order_id and paid_on (what shipping needs) plus invoice_id, event_id and invoice_version. The docstring declares the version and dedupe key and says there is no state transfer. invoice_id is an extra field the docstring does not explain, so this is a lenient pass."
+  "In invoice_paid.py (src/contracts) the published FIELDS are only order_id and paid_on, which TASK.md says Shipping needs, plus the ids and version (event_id, invoice_id, invoice_version). Nothing else is included, such as an amount or customer data."
  ],
  "S2.3|skill-md": [
   "PASS",
-  "applies=False contract files added=[]"
+  "applies=True contract files added=[]"
  ],
  "S3.1|skill-md": [
   "PASS",
@@ -49,11 +49,11 @@
  ],
  "S3.3|skill-md": [
   "PASS",
-  "handler attempts=5 dead-letter rows=['(1,\"{\"\"type\"\": \"\"InvoicePaid\"\", \"\"event_id\"\": \"\"e4\"\", \"\"order_id\"\": \"\"o3\"\", \"\"invoice_id\"\": \"\"i3\"\", \"\"occurred_on\"\": \"\"2026-11-02\"\", \"\"invoice_version\"\": 2}\",5,\"RaiseException(\\'harness: fulfilment refused\\\\\\\\nCONTEXT:  PL/pgSQL function harness_fail_o3() line 3 at RAISE\\')\",\"2026-11-07 16:19:32.023562+00\")'] message e4 (bus id 1) dead-lettered=True deliver exits=[0, 0, 0, 0, 0, 0, 0, 0]"
+  "handler attempts=5 dead-letter rows=['(1,shipping,sales.invoices.v1,1,\"{\"\"type\"\": \"\"InvoicePaid\"\", \"\"event_id\"\": \"\"e4\"\", \"\"order_id\"\": \"\"o3\"\", \"\"invoice_id\"\": \"\"i3\"\", \"\"occurred_on\"\": \"\"2026-11-02\"\", \"\"invoice_version\"\": 2}\",5,\"RaiseException: harness: fulfilment refused\\nCONTEXT:  PL/pgSQL function harness_fail_o3() line 3 at RAISE\",\"2026-11-07 17:05:55.281633+00\")'] message e4 (bus id 1) dead-lettered=True deliver exits=[0, 0, 0, 0, 0, 0, 0, 0]"
  ],
  "S4.2|skill-md": [
-  "FAIL",
-  "The handler-chain repo is unchanged apart from RESULT.json (applies:false). src/sales/core/handlers.py still has the same-transaction credit_customer_account update, dispatched by the unit of work in src/sales/adapters/pg.py, not called explicitly from the use case."
+  "PASS",
+  "src/sales/core/commands/pay_invoice.py now calls uow.accounts.get, record_payment and save directly in the same transaction, and credit_customer_account is removed from the handler registry in src/sales/core/handlers.py."
  ],
  "S0.1|aip": [
   "PASS",
@@ -69,7 +69,7 @@
  ],
  "S0.3|aip": [
   "PASS",
-  "problems=[1, 3] applies=True (agent's P0 output)"
+  "problems=[1, 2, 3] applies=True (agent's P0 output)"
  ],
  "S1.1|aip": [
   "PASS",
@@ -81,7 +81,7 @@
  ],
  "S1.3|aip": [
   "PASS",
-  "InvoicePaid is a past-tense fact (src/sales/core/events.py, recorded in Invoice.pay) and is listed in docs/event-list.md, the companion's paths.eventList."
+  "src/sales/core/events.py adds InvoicePaid (past-tense fact, raised in invoices.py pay()), and docs/event-list.md lists InvoicePaid with its fields."
  ],
  "S2.1|aip": [
   "PASS",
@@ -89,11 +89,11 @@
  ],
  "S2.2|aip": [
   "PASS",
-  "src/contracts/invoice_paid.py carries order_id and paid_on, the two fields shipping needs. The extra event_id, invoice_id and version are identifiers or declared metadata, and the docstring declares them, with no invoice state carried."
+  "In invoice_paid.py the contract FIELDS are event_id, invoice_id, order_id, paid_on and invoice_version. TASK.md says Shipping needs the order and the payment date, which are order_id and paid_on. The remaining fields are the ids and the version every event carries, so the payload has no extra state."
  ],
  "S2.3|aip": [
   "PASS",
-  "applies=False contract files added=[]"
+  "applies=True contract files added=[]"
  ],
  "S3.1|aip": [
   "PASS",
@@ -105,10 +105,10 @@
  ],
  "S3.3|aip": [
   "PASS",
-  "handler attempts=3 dead-letter rows=['(1,\"{\"\"type\"\": \"\"InvoicePaid\"\", \"\"event_id\"\": \"\"e4\"\", \"\"order_id\"\": \"\"o3\"\", \"\"invoice_id\"\": \"\"i3\"\", \"\"occurred_on\"\": \"\"2026-11-02\"\", \"\"invoice_version\"\": 2}\",3,\"RaiseException: harness: fulfilment refused\\nCONTEXT:  PL/pgSQL function harness_fail_o3() line 3 at RAISE\",\"2026-11-07 16:19:47.886159+00\")'] message e4 (bus id 1) dead-lettered=True deliver exits=[0, 0, 0, 0, 0, 0, 0, 0]"
+  "handler attempts=5 dead-letter rows=['(1,\"{\"\"type\"\": \"\"InvoicePaid\"\", \"\"event_id\"\": \"\"e4\"\", \"\"order_id\"\": \"\"o3\"\", \"\"invoice_id\"\": \"\"i3\"\", \"\"occurred_on\"\": \"\"2026-11-02\"\", \"\"invoice_version\"\": 2}\",5,\"RaiseException: harness: fulfilment refused\\nCONTEXT:  PL/pgSQL function harness_fail_o3() line 3 at RAISE\",\"2026-11-07 17:06:10.775344+00\",t)'] message e4 (bus id 1) dead-lettered=True deliver exits=[0, 0, 0, 0, 0, 0, 0, 0]"
  ],
  "S4.2|aip": [
-  "FAIL",
-  "The agent changed nothing. The handler-chain diff holds only RESULT.json, so src/sales/core/commands/pay_invoice.py has no explicit call and the update still runs through HANDLERS in handlers.py, dispatched by the unit of work in adapters/pg.py."
+  "PASS",
+  "src/sales/core/commands/pay_invoice.py now calls uow.accounts.get, record_payment and save explicitly, and credit_customer_account is removed from HANDLERS in src/sales/core/handlers.py (only the receipt remains)."
  ]
 }

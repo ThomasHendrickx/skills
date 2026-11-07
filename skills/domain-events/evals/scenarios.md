@@ -11,7 +11,7 @@ Run every scenario independently against a fresh fixture with both `SKILL.md` an
 | S1.2 | script | `invoice-paid` | Then no domain or use case file imports the bus client. |
 | S1.3 | agent | `invoice-paid` | Then the event is a past-tense fact and listed in paths.eventList. |
 | S2.1 | script | `invoice-paid` | Given shipping as the consumer, When P2 completes, Then a versioned contract exists in paths.integrationEvents and no shipping code imports the internal event type. |
-| S2.2 | agent | `invoice-paid` | Then the payload holds only the fields shipping's need names; any carried state is declared. |
+| S2.2 | agent | `invoice-paid` | Then the payload holds only the fields Shipping needs, plus the ids and version every event carries (rule 7). |
 | S2.3 | script | `no-consumer` | Given a task with no consumer named, When P2 runs, Then it stops and no contract file exists. |
 | S3.1 | script | `consumer` | Given a consumer, When the same event arrives twice, Then the effect happens once. |
 | S3.2 | script | `consumer` | When an older version arrives after a newer one for the same aggregate, Then it is ignored. |
@@ -19,7 +19,7 @@ Run every scenario independently against a fresh fixture with both `SKILL.md` an
 | S4.1 | script | `direct-publish` | Given two use cases publishing directly, one touched by the task, When P4 completes, Then the touched one writes to the outbox and the other is unchanged. |
 | S4.2 | agent | `handler-chain` | Given an in-process handler doing a same-transaction update, When P4 completes, Then it is an explicit call in the use case. |
 
-S0.1 is the intentional no-problem control. Every other fixture carries a real problem signal: `direct-publish` publishes before the save, `invoice-paid` needs another context to react, `no-consumer` has other teams asking what happened, `consumer` double-applies, reorders and swallows failures, `handler-chain` also mails a receipt from an in-process handler before commit.
+S0.1 is the intentional no-problem control. A scenario S1.x to S4.x whose run P0 stopped (applies not true) is NOT RUN, whatever its check says: its procedure never ran. Every other fixture carries a real problem signal: `direct-publish` publishes before the save, `invoice-paid` needs another context to react, `no-consumer` mails the payment receipt before commit and has other teams asking what happened, with no team subscribing, `consumer` double-applies, reorders and swallows failures, `handler-chain` also mails a receipt from an in-process handler before commit.
 
 How the script checks work, beyond the obvious:
 

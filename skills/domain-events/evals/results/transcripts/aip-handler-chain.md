@@ -1,6 +1,12 @@
 # Report
-- P0-1: ran scan_infra_imports.py on src/sales/core and src/shipping/core with infra modules src.infra.bus and src.infra.mail. No violations.
-- P0-2: the task (store last payment date on the customer account when an invoice is paid) has none of problems 1-4. It has no cross-context or outside-system effect, no side effect before commit, no consumer reading another context's tables, and no redelivery concern.
-- P0-3: the reaction is in the same context (sales) and the same transaction, so the skill says to stop and use an explicit call. applies=false.
-- Stopped after P0, so P4 was not run. RESULT.json written: {"violations": [], "problems": [], "applies": false}.
-- No repo code changed. The skill's guidance for the task is an explicit call in pay_invoice, not an event handler. src/sales/core/handlers.py currently dispatches credit_customer_account as an in-process handler. The existing send_payment_receipt mails before commit, which is outside the task's scope.
+
+P0: the scan script found no violations. The task changes the in-process handler chain (the InvoicePaid handler `credit_customer_account`, same context and same transaction), so applies is true. RESULT.json holds {"violations": [], "problems": [], "applies": true}. I listed no problem numbers because the task touches no cross-context or outside-the-database effect.
+
+P4:
+- Scope: only `credit_customer_account`, the handler that updates the customer account. The receipt handler (a mail send before commit) is not part of the task, so I left it unchanged.
+- Replace: `pay_invoice` now credits the account explicitly. It loads the account, calls `record_payment(amount, paid_on)` and saves it, all in the same unit of work. `CustomerAccount` has a new `last_paid_on` field. I added `last_paid_on` to `schema.sql` and to the account repository's get and save. I also added `accounts` to the `SalesUnitOfWork` port.
+- Remove: I deleted `credit_customer_account` and dropped it from `HANDLERS`. The dispatch mechanism stays because the receipt handler still uses it.
+- Tests: I added a test for the last payment date and a test that a failed second payment leaves the account unchanged.
+- Checks: `check_direction.py` passes and all 8 tests pass.
+
+Not done: I did not move the payment receipt out of the dispatch-before-commit path (the receipt can go out for a payment that later rolls back). That is outside this task's scope.
