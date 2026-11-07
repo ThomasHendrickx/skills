@@ -21,3 +21,4 @@ SKILL.md is the source of truth; AIP is compiled from it, never written by hand.
    - source paraphrased, losing the numbers the steps cite
    - a scan that matches text instead of structure
    - a scenario whose acceptance wording invites the forbidden behaviour
+   - a scope limit stated in a heading instead of a numbered step

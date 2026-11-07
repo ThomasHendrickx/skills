@@ -1,0 +1,6 @@
+You work in the repository at WORK/aip/revenue/repo. Apply the skill in WORK/aip/revenue/skill (read its SKILL.md first and follow its procedures) to the task in WORK/aip/revenue/repo/TASK.md. The repo companion is WORK/aip/revenue/repo/COMPANION.md; run commands from WORK/aip/revenue/repo. The Postgres database for this repo is already running; its URL is in WORK/aip/revenue/repo/database.url.
+
+Run P0, then P2. Before anything else, run P0 and write its result to WORK/aip/revenue/repo/RESULT.json as {"violations": [...], "problems": [numbers], "applies": bool}.
+If the skill has script steps, run them (scripts are under the skill folder; read a script's header for usage). Do the steps yourself; do not look outside WORK/aip/revenue/repo and WORK/aip/revenue/skill.
+If P0 says applies is false, stop after P0. If you add a projection, also write WORK/aip/revenue/repo/PROJECTION.json as {"table": "<table name>", "rebuild": "<shell command, run from the repo, that rebuilds it from source>", "process": "<shell command that applies pending updates, or null>"}.
+Finish with a short report (the steps you ran, what you changed, anything you could not do) and also write it to WORK/aip/revenue/AGENT_REPORT.md.

@@ -1,0 +1,6 @@
+You work in the repository at WORK/aip/shipping/repo. Apply the skill in WORK/aip/shipping/skill (read its SKILL.md first and follow its procedures) to the task in WORK/aip/shipping/repo/TASK.md. The repo companion is WORK/aip/shipping/repo/COMPANION.md; run commands from WORK/aip/shipping/repo. The Postgres database for this repo is already running; its URL is in WORK/aip/shipping/repo/database.url.
+
+Run P0, then P2. Before anything else, run P0 and write its result to WORK/aip/shipping/repo/RESULT.json as {"violations": [...], "problems": [numbers], "applies": bool}.
+If the skill has script steps, run them (scripts are under the skill folder; read a script's header for usage). Do the steps yourself; do not look outside WORK/aip/shipping/repo and WORK/aip/shipping/skill.
+If P0 says applies is false, stop after P0. If you add a projection, also write WORK/aip/shipping/repo/PROJECTION.json as {"table": "<table name>", "rebuild": "<shell command, run from the repo, that rebuilds it from source>", "process": "<shell command that applies pending updates, or null>"}.
+Finish with a short report (the steps you ran, what you changed, anything you could not do) and also write it to WORK/aip/shipping/AGENT_REPORT.md.
