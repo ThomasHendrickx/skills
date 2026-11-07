@@ -4,7 +4,7 @@ PASS: step names unique
 PASS: P0 has 3 steps (found 3)
 PASS: P1 has 7 steps (found 7)
 PASS: P2 has 5 steps (found 5)
-PASS: P3 has 4 steps (found 4)
+PASS: P3 has 5 steps (found 5)
 PASS: every step is a P0..P3 node
 PASS: scripts exist
 PASS: four script steps

@@ -13,7 +13,7 @@ Compiled following the `aip` compiler skill from [zach-blumenfeld/aip](https://g
 | Not needed when | `do_not_use_when` |
 | Rules | `scope_and_approval` |
 | Failure modes (6) | `anti_patterns`, one item each |
-| Procedures | `steps`: P0 3, P1 7, P2 5, P3 4 nodes |
+| Procedures | `steps`: P0 3, P1 7, P2 5, P3 5 nodes |
 
 ## Graph
 

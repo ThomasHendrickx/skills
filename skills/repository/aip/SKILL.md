@@ -157,32 +157,40 @@ steps:
       - {name: checks.contractTests, type: string}
     outputs:
       - {name: p2_contract_passed, type: boolean}
-  - name: p3-1-list-touched-generic-calls
-    description: P3 step 1 (agent). List generic calls in code touched by the task.
+  - name: p3-1-scope-touched-calls
+    description: P3 step 1 (agent). Scope is the generic calls the task touches; every other caller stays unchanged.
     depends_on: [p0-3-decide-applies]
     inputs:
       - {name: applies, type: boolean}
       - {name: task, type: object}
     outputs:
+      - {name: scope_list, type: "list[string]", description: Generic calls in scope; every other caller stays unchanged.}
+  - name: p3-2-list-touched-generic-calls
+    description: P3 step 2 (agent). List the generic calls the task touches.
+    depends_on: [p3-1-scope-touched-calls]
+    inputs:
+      - {name: scope_list, type: "list[string]"}
+      - {name: task, type: object}
+    outputs:
       - {name: touched_generic_calls, type: "list[string]"}
-  - name: p3-2-replace-with-named-finders
-    description: P3 step 2 (agent). Replace each call with a need-named finder through P2.
-    depends_on: [p3-1-list-touched-generic-calls]
+  - name: p3-3-replace-with-named-finders
+    description: P3 step 3 (agent). Replace each call with a need-named finder through P2.
+    depends_on: [p3-2-list-touched-generic-calls]
     inputs:
       - {name: touched_generic_calls, type: "list[string]"}
     outputs:
       - {name: replaced_calls, type: "list[string]"}
-  - name: p3-3-remove-unreferenced-generic-method
-    description: P3 step 3 (agent). Remove a generic method only when no caller remains.
-    depends_on: [p3-2-replace-with-named-finders]
+  - name: p3-4-remove-unreferenced-generic-method
+    description: P3 step 4 (agent). Remove a generic method only when no caller remains.
+    depends_on: [p3-3-replace-with-named-finders]
     inputs:
       - {name: replaced_calls, type: "list[string]"}
     outputs:
       - {name: generic_method_removed, type: boolean}
-  - name: p3-4-run-contract-and-direction
-    description: P3 step 4 (script). Run contract tests and dependency-direction checks.
+  - name: p3-5-run-contract-and-direction
+    description: P3 step 5 (script). Run contract tests and dependency-direction checks.
     script: scripts/run_check.py
-    depends_on: [p3-3-remove-unreferenced-generic-method]
+    depends_on: [p3-4-remove-unreferenced-generic-method]
     inputs:
       - {name: generic_method_removed, type: boolean}
       - {name: checks.contractTests, type: string}
