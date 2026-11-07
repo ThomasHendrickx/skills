@@ -1,11 +1,11 @@
-# Report
-- P0: the skill has no scripts, so I checked by hand. src/queries imports nothing from src/core, and no command handler imports queries (violations: none). Problems 1 and 3 apply (a join across contexts, and another context's data), so applies=true. Written to repo/RESULT.json.
-- P2: the evidence is that the page needs another context's data. Level 2, an outbox-fed projection:
-  - schema.sql: added `shipping_outbox`, `order_shipping_status` (the projection) and `order_shipping_processed` (idempotency on event_id). The spec comments are in schema.sql.
-  - Shipping commands (create and dispatch) now write an event to the outbox in their own transaction.
-  - New src/projections/order_shipping.py: an idempotent updater (`apply_pending`) and a rebuild that replays the outbox. A dispatched row is never regressed to pending.
-  - The my_orders query now reads `order_shipping_status` and no longer touches `shipments`.
-  - Read-your-own-writes: src/main.py applies pending events right after each shipping command commits, so the page shows dispatched before the dispatch email can be sent. This is synchronous for now, and `python3 -m src.projections.order_shipping` catches up any events left pending.
-  - Tests added: the page works with the `shipments` table dropped; redelivery causes no double update; rebuild equals incremental.
-- Checks: check_direction.py passes and all 5 tests pass. PROJECTION.json written.
-- Not done: the email sender itself isn't in the repo, so I couldn't wire it. Also, only the rebuild was run against the live DB, and only as a smoke test.
+# Agent report
+
+Steps: read SKILL.md and related/domain-events; P0 (no import violations; problem 3, another context's data; applies=true, RESULT.json written); P2 (evidence: another context's data, `measurement` none).
+
+Changes:
+- Shipping (`src/shipping`): shipments get a `version`; the aggregate records ShipmentCreated/ShipmentDispatched; commands write them to `shipping_outbox` in the same transaction; `contracts.py` declares the ShipmentChanged v1 integration event (state transfer declared); `relay.py` publishes after commit, at least once, retries, dead-letters after 5 attempts with an error-log alert.
+- Orders context: `order_shipping` projection plus `order_shipping_processed_events` (idempotency key = event_id, older shipment_version ignored) in schema.sql and `src/projections/order_shipping.py`; `my_orders` query now reads `order_shipping`, no longer `shipments`.
+- Projection spec: async outbox consumer; read-your-own-writes by running the relay synchronously right after the shipping commands commit (src/main.py), `process` retries failures; rebuild replays retained outbox events (`python3 -m src.projections.rebuild`).
+- Tests: tests/test_order_shipping_projection.py. All 10 tests and check_direction pass.
+
+Not done: no backfill for shipments that existed before the outbox (their status would show pending until a new event); no real email sender exists in the repo, so nothing was wired to it; dead-letter alert is an error log.

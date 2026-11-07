@@ -42,7 +42,7 @@ Plain CRUD on supporting data with no shape mismatch. An edit form reading one a
 4. The query side never imports the domain model and never evaluates a business rule; it may read the same tables.
 5. Start at level 1. Level 2 needs a recorded measurement over budget, a history read, or another context's data. Level 3 needs an explicit architecture decision.
 6. A projection declares its update trigger (same transaction, outbox consumer or scheduled snapshot), staleness bound, idempotency key and rebuild procedure. An async projection also declares its read-your-own-writes strategy.
-7. No dual writes: an event feeding a projection is written to an outbox in the command's transaction.
+7. Events feeding a projection follow `domain-events`.
 8. Commands are named for business intent and carry only the data that behaviour needs. CRUD verbs only for supporting data.
 9. A command handler never reads a projection or query to decide.
 10. Applied per read need inside one bounded context, never mandated system-wide. A mediator library is optional and is not CQRS. Event sourcing is never introduced here.

@@ -1,0 +1,1 @@
+People from other teams keep asking Sales whether a given invoice was paid. Rather than answer each time, publish invoice payments on the message bus so that any team can pick them up whenever they need them. No team has asked to subscribe yet.

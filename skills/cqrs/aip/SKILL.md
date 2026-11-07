@@ -48,10 +48,10 @@ scope_and_approval: >
   measurement over budget, a history read, or another context's data. Level 3 needs an explicit
   architecture decision. Rule 6: a projection declares its update trigger (same transaction, outbox
   consumer or scheduled snapshot), staleness bound, idempotency key and rebuild procedure. An async
-  projection also declares its read-your-own-writes strategy. Rule 7: no dual writes: an event
-  feeding a projection is written to an outbox in the command's transaction. Rule 8: commands are
-  named for business intent and carry only the data that behaviour needs. CRUD verbs only for
-  supporting data. Rule 9: a command handler never reads a projection or query to decide. Rule 10:
+  projection also declares its read-your-own-writes strategy. Rule 7: events feeding a projection
+  follow domain-events. Rule 8: commands are named for business intent and carry only the data that
+  behaviour needs. CRUD verbs only for supporting data. Rule 9: a command handler never reads a
+  projection or query to decide. Rule 10:
   applied per read need inside one bounded context, never mandated system-wide. A mediator library
   is optional and is not CQRS. Event sourcing is never introduced here.
 anti_patterns:

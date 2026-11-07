@@ -18,13 +18,14 @@ Evidence per run is in `transcripts/<form>-<run>.{prompt.md,md,diff}`: the exact
 | S2.1 | PASS | PASS | stopped at P0 (applies=false), no new table / same |
 | S2.2 | PASS | PASS | query reads `monthly_revenue_projection`; report correct; second void and repeated processing leave rows equal; rebuild equals incremental / same |
 | S2.3 | PASS | FAIL | trigger, staleness, idempotency key (invoice_id, change) and rebuild declared in `revenue_projection.py` / trigger and rebuild declared; no staleness bound or idempotency key declared |
-| S2.4 | PASS | PASS | rolled-back dispatch changed no table; committed dispatch added a `shipping_outbox` row / same |
+| S2.4 | PASS | PASS | rerun after rule 7 became a pointer to `domain-events`: rolled-back dispatch changed no table; committed dispatch added a `shipping_outbox` row (and processed-event rows) / same, plus an `order_shipping` row |
 | S3.1 | PASS | PASS | customer page uses a query, staff page unchanged, finder kept / same, wired through `src/main.py` |
 | S4.1 | PASS | PASS | `change_shipping_address(order_id, street, city, postcode)` returns the version / same |
 | S4.2 | PASS | PASS | `update_order` kept; the original UpdateOrder tests pass / same |
 
 ## Notes
 
+- S2.4 was rerun on both forms after rule 7 (outbox) moved to `domain-events` and became a pointer; the AIP was recompiled first (`validate-aip.txt`, `check-aip.txt`). For that rerun the harness gives the agent `domain-events` in the same form under `skill/related/` (both agents read it), so the shipping prompt differs from the other runs by one sentence. Fresh Sonnet 5.5 subagents again; raw check output in `check-output-s2.4-rerun.md`, evidence in `transcripts/*-shipping.*`. The other rows are from the earlier runs, not rerun.
 - S2.3 AIP fails: the AIP run's projection is same-transaction and correct (S2.2 passes), but it declares no staleness bound and no idempotency key, which rule 6 asks for. Reported as is.
 - S2.1 passed on both forms by P0 stopping (applies=false: the level-1 query already exists and the measurement is under budget), not by P2 step 1. P2 step 1 was never reached, so the scenario's "When P2 runs" is only partly exercised.
 - Both revenue runs chose a same-transaction trigger, and set `process` to null, so S2.2 tested "the same change applied twice" as a second void of the same invoice. Both shipping runs chose an outbox consumer, which is the async case S2.4 needs.

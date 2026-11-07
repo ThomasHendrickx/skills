@@ -1,0 +1,7 @@
+# Agent report
+
+P0: scan_infra_imports.py found no violations. Problems 1 and 3 hold (Shipping must hear about payments). applies = true. Written to repo/RESULT.json.
+P1: added InvoicePaid to docs/event-list.md and src/sales/core/events.py. Invoice.pay records it. pay_invoice writes it to the new sales_outbox table (schema.sql) in the same transaction (PgOutbox in src/sales/adapters/pg.py). Added src/sales/adapters/relay.py, which publishes after commit and marks rows published afterwards (at least once; a failed publish stays pending and is retried next run). It is exposed as main.relay_outbox(). Tests added in tests/test_sales.py (commit -> one row, rollback/failure -> none, nothing published before the relay, publish once).
+P2: contract src/contracts/invoice_paid.py (topic sales.invoice-paid.v1; event_id, invoice_id, order_id, paid_on, version). It carries the order and date Shipping asked for, plus event_id and version so their consumer can be idempotent. The relay maps the internal event to it; contract test included.
+Checks: check_direction.py and unit tests pass (10 tests).
+Not done: the Shipping consumer (Shipping's job; P3 skipped). Nothing runs the relay on a schedule; main.relay_outbox() must be called by a worker or cron. The relay has no dead-letter or alert, because it only does at-least-once retry. The relay stops retrying nothing on its own, so a permanently failing row blocks the batch. That is a known limitation.

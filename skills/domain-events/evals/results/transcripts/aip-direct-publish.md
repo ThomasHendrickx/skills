@@ -1,0 +1,5 @@
+# Report
+Steps: P0 (scan_infra_imports.py: violations in pay_invoice.py and cancel_invoice.py; problem 2 holds, applies=true; RESULT.json written), then P4.
+P4: scope = pay_invoice only (cancel_invoice is another team's, left untouched, still imports the bus). Replaced the direct bus.publish (made before save/commit) with P1: InvoicePaid added to docs/event-list.md and events.py; Invoice.pay records it; pay_invoice writes it to new sales_outbox table (schema.sql) in the same transaction via uow.outbox (PgOutbox); new src/sales/adapters/relay.py publishes after commit to the same topic/payload, marks rows published; main.relay_sales_outbox() exposes it. Tests updated/added (relay needed, nothing published before relay, rollback leaves no notice). Old path not removed because cancel_invoice still uses the bus.
+Checks (run_check.py): direction ok, 9 tests pass.
+Not done: no scheduler wires relay_sales_outbox in production (none exists in repo); consumer idempotency (problem 4) not in scope.
