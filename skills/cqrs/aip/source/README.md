@@ -30,4 +30,5 @@ Compiled following the `aip` compiler skill from [zach-blumenfeld/aip](https://g
 - `run_check.py` runs commands the companion supplies; this skill ships no repository-specific check. P4 step 5's "the tests" is the companion's `checks.queryTests` command, the only test command the companion names.
 - The Levels list is `modes`: each level is a named variant of how far the procedure goes, and the procedure schema has no other field for it.
 - `performance` and `domain-modelling` stay pointers inside `purpose` and step descriptions, as in the source.
+- P2 step 2's output `projection_spec` describes what the spec holds and that the projection itself declares it, citing rule 6. The source's "-> projection spec" names the output only; untyped, the AIP run kept the staleness bound and idempotency key in its report and declared neither in the repository (issue #49).
 - Scenarios remain in `../../evals/`, outside the AIP body.

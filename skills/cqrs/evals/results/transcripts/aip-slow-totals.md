@@ -1,6 +1,14 @@
 # Report
-- P0 step 1: ran scripts/scan_query_imports.py src/core src/queries -> no violations.
-- P0 step 2: the customer totals page is already a level-1 query (src/queries/customer_totals.py, SQL with paging, sort, count; returns read types, no aggregates loaded). MEASUREMENT.md (2026-11-03, production-sized data) shows p95 of 40 ms and 46 ms against a 300 ms budget. No problems 1-5 hold.
-- P0 step 3: applies = false. Stopped after P0, as instructed; P2 not run because it depends on P0 applying (and there is no evidence anyway: within budget, no history read, no foreign context).
-- Changed: nothing in the code; no projection added, so no PROJECTION.json. Wrote RESULT.json only.
-- Could not do: nothing. The "feels slow" claim is not supported by the measurement; a new measurement showing an over-budget read would be needed before a projection.
+
+Steps run
+- P0-1: ran scripts/scan_query_imports.py src/core src/queries -> violations: [] (src/queries is empty; no rule 4/9 breaks).
+- P0-2: customer_totals_page loads every order and customer aggregate through the unit of work, then filters (cancelled, min_orders), sums, sorts and pages in Python. That is problem 1 (read shape differs from the write model; assembled/filtered/paged in code) and problem 3 (spans the customer and order aggregates). Problems 2, 4, 5 not shown: history is not read, the write model is not bent, no commands involved.
+- P0-3: applies = true. RESULT.json written: {"violations": [], "problems": [1, 3], "applies": true}.
+- P2-1: checked projection evidence. MEASUREMENT.md (staging, 2026-11-03, production-sized data): p95 40 ms and 46 ms against a 300 ms budget, so no measurement over budget. No history read. No other context's data (customers and orders are in this context). Evidence: none -> stop at level 1 (rule 5).
+- P2-2 onward not run: no projection added, so no PROJECTION.json.
+
+Changed
+- Only RESULT.json and this report. No code changed, no projection or table added.
+
+Could not do / notes
+- Not asked to run P1, so the level-1 fix (a query handler in src/queries issuing one SQL aggregate with paging, filter and sort, wired from the web page) was not implemented. It is the right next step, not a projection. The measured numbers are within budget, so the "slow" claim is not backed by the staging run.

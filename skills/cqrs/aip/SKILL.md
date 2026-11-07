@@ -156,7 +156,7 @@ steps:
     inputs:
       - {name: projection_evidence, type: object}
     outputs:
-      - {name: projection_spec, type: object}
+      - {name: projection_spec, type: object, description: "Table, trigger, staleness bound, idempotency key, rebuild procedure, and for async the read-your-own-writes strategy, each declared with the projection (rule 6)."}
   - name: p2-3-write-projection-scenarios
     description: "P2 step 3 (agent). Scenarios: given changes -> expected rows; the same change applied twice -> no double update; rebuild from source equals incremental."
     depends_on: [p2-2-specify-projection]
