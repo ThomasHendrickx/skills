@@ -23,6 +23,7 @@ This installs into `.agents/skills/` (read by Codex) and links each skill into `
 - `repository`: aggregate-root repositories, need-named finders, contract tests, and paging.
 - `cqrs`: query ports returning read types, projections only on measured need, intent-named commands.
 - `domain-events`: past-tense events through an outbox and a relay, versioned integration events across contexts, idempotent consumers; explicit calls inside one context.
+- `remote-calls`: timeouts, capped retries with jitter, evidence-based circuit breakers and per-dependency concurrency limits in driven adapters.
 - `aip-skill-writing`: writing a SKILL.md that compiles cleanly to AIP and passes its scenarios on both forms.
 - `web-frontend`: feature structure, state, React rules.
 - `performance`: scale targets and budget, API design, the toolbelt, live updates, proof at scale, UI states.

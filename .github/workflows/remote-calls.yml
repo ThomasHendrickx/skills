@@ -1,0 +1,49 @@
+name: remote-calls
+on:
+  pull_request:
+    paths:
+      - skills/remote-calls/**
+      - .github/workflows/remote-calls.yml
+  push:
+    branches: [main]
+    paths:
+      - skills/remote-calls/**
+      - .github/workflows/remote-calls.yml
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: python -m pip install pyyaml==6.0.3 jsonschema==4.25.1
+      - name: Validate compiled form with the pinned compiler
+        shell: bash
+        run: |
+          git clone https://github.com/zach-blumenfeld/aip.git "$RUNNER_TEMP/aip"
+          git -C "$RUNNER_TEMP/aip" checkout 2c20a02fe2b6c34eb98476853865a6b07946dc62
+          mkdir "$RUNNER_TEMP/remote-calls"
+          cp -R skills/remote-calls/aip/. "$RUNNER_TEMP/remote-calls/"
+          python "$RUNNER_TEMP/aip/scripts/validate.py" "$RUNNER_TEMP/remote-calls"
+      - name: Verify source mapping, node counts and graph
+        run: python skills/remote-calls/evals/check_aip.py
+      - name: Install pinned fixture and parser dependencies
+        shell: bash
+        run: |
+          mkdir "$RUNNER_TEMP/remote-calls-deps"
+          cp skills/remote-calls/evals/fixtures/shared/package*.json "$RUNNER_TEMP/remote-calls-deps/"
+          npm ci --ignore-scripts --prefix "$RUNNER_TEMP/remote-calls-deps"
+      - name: Test structural scanners
+        env:
+          REMOTE_CALLS_NODE_MODULES: ${{ runner.temp }}/remote-calls-deps/node_modules
+        run: python -m unittest discover -s skills/remote-calls/evals -p test_scan_remote_calls.py -v
+      - name: Verify evaluation checks reject missing behavior
+        env:
+          REMOTE_CALLS_NODE_MODULES: ${{ runner.temp }}/remote-calls-deps/node_modules
+        run: python skills/remote-calls/evals/harness.py baseline
