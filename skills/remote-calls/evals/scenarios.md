@@ -7,7 +7,7 @@ S1.1 (script) Given a dependency slower than its timeout, When P1 completes, The
 S1.2 (script) Given two adapters without timeouts, one touched by the task, When P1 completes, Then only the touched one changed.
 S2.1 (script) Given a 503 then a 200, When the call runs, Then it succeeds after two attempts.
 S2.2 (script) Given a create call without an idempotency key, When it fails, Then it is attempted once.
-S2.3 (script) Given an SDK client that already retries, When P2 completes, Then total attempts equal the SDK's (no second layer).
+S2.3 (script) Given an SDK client that already retries, When P0 runs, Then it stops and configures the SDK's retry; total attempts equal the SDK's (no second layer).
 S2.4 (script) Given a 429 with Retry-After: 2, When retried, Then the next attempt is not before 2 seconds.
 S3.1 (script) Given failures over the threshold, When further calls are made, Then they fail fast and the dependency receives none of them.
 S3.2 (script) After the open duration, Then one trial call passes and a success closes the breaker.

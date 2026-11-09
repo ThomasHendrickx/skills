@@ -21,12 +21,14 @@ codex exec --ignore-user-config --ephemeral --skip-git-repo-check \
   > /tmp/remote-calls-runs/skill-md/local/transcript.jsonl
 ```
 
-The agent records `RESULT.json` with real gate output and `proceduresRun`. Missing report means `not run`. P0 must say `applies: true` and list the relevant procedure before a later scenario counts as run. The SDK fixture intentionally exposes the source's early platform-mechanism stop: do not override its gate to force S2.3 through P2.
+The agent records `RESULT.json` with real gate output and `proceduresRun`. Missing report means `not run`. P0 must say `applies: true` and list the relevant procedure before a later scenario counts as run. S2.3 uses Thomas's 9 November revision: its When is P0. It requires the existing-SDK stop, configuration of that layer, and the SDK's total attempt count. Do not force it through P2.
 
-Independent fresh judges review S0.4, S0.5 and S3.5 against the approved text, task, source/compiled form, actual diff and transcript. Record each judgement in `<work>/<form>/JUDGE.json`, keyed by scenario, with `{"result":"pass|fail|not run","evidence":"specific observation"}`. No judgement means `not run`; the scripted observable check still vetoes a contradictory pass. A judge must not count a gated-off P3 fallback as run.
+Independent fresh judges review S0.4, S0.5, S2.3 and S3.5 against the approved text, task, source/compiled form, actual diff and transcript. Record each judgement in `<work>/<form>/JUDGE.json`, keyed by scenario, with `{"result":"pass|fail|not run","evidence":"specific observation"}`. No judgement means `not run`; the scripted observable check still vetoes a contradictory pass. A judge must not count a gated-off P3 fallback as run.
 
 ```sh
 python3 skills/remote-calls/evals/harness.py check /tmp/remote-calls-runs
+# To check only a revised scenario on freshly prepared runs:
+python3 skills/remote-calls/evals/harness.py check /tmp/remote-calls-s23-rerun S2.3
 python3 skills/remote-calls/evals/harness.py collect /tmp/remote-calls-runs /tmp/remote-calls-evidence
 ```
 

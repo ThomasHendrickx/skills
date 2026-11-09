@@ -1,3 +1,5 @@
+Consolidated results: original evidence retained for all other scenarios; only revised S2.3 rerun. Raw S2.3-only harness output is in s23-p0-rerun/check-output.md.
+
 | Scenario | SKILL.md | AIP |
 | --- | --- | --- |
 | S0.1 | pass | pass |
@@ -9,8 +11,8 @@
 | S1.2 | pass | pass |
 | S2.1 | pass | pass |
 | S2.2 | pass | pass |
+| S2.3 | pass | pass |
 | S2.4 | pass | pass |
-| S2.3 | not run | not run |
 | S3.1 | pass | pass |
 | S3.2 | pass | pass |
 | S3.3 | pass | pass |

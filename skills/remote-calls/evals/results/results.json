@@ -40,8 +40,8 @@
     "evidence": "429 then 200 -> next attempt after 2000 ms (>=2000)"
   },
   "S2.3|skill-md": {
-    "result": "not run",
-    "evidence": "P2 did not run; actual P0 applies=False, procedures=['P0']"
+    "result": "pass",
+    "evidence": "independent judge: Independently imported finished makeVendor, unchanged makeSDK and unchanged Network in Node. Ten scripted 503s: SDK=3 outbound attempts, adapter=3, both reject HTTP 503. Two 503s then success: SDK=3, adapter=3, both return {ok:true}. Unkeyed charge=1 attempt. Read supplied skill, PROMPT.md, TASK.md, companion documents/JSON, measurement, baseline, RESULT.json, actual AGENT_REPORT.md and complete recursive baseline/repo diff. Adapter removes Cockatiel outer retry and delegates directly to makeSDK; SDK and external boundary are byte-unchanged. No second retry layer remains. P0 evidence: RESULT.json preserves missing timeout at untouched.js:2, violations=[], applies=false, proceduresRun=[P0]. Independent execution of shipped P0 scanner reproduces those findings (exit 1, unsupported=[], clean=false). Actual report explicitly records scanner command and SDK-mechanism stop; AIP additionally has matching p0-scan.json. Beyond P0: complete diffs show no timeout, breaker, bulkhead, fallback or new retry implementation; unrelated untouched.js and SDK timeout remain unchanged. Only adapter delegation, three budget regression tests, RESULT.json, and (AIP only) descriptive config metadata were added. Tests/check commands are ordinary verification of the P0-authorized fix. Historical procedure execution cannot be proven from artifacts alone; supplied evidence is consistent with P0 only.; observable check: P0 stopped=True; procedures=['P0']; persistent SDK failure -> exactly SDK three attempts"
   },
   "S3.1|skill-md": {
     "result": "pass",
@@ -116,8 +116,8 @@
     "evidence": "429 then 200 -> next attempt after 2000 ms (>=2000)"
   },
   "S2.3|aip": {
-    "result": "not run",
-    "evidence": "P2 did not run; actual P0 applies=False, procedures=['P0']"
+    "result": "pass",
+    "evidence": "independent judge: Independently imported finished makeVendor, unchanged makeSDK and unchanged Network in Node. Ten scripted 503s: SDK=3 outbound attempts, adapter=3, both reject HTTP 503. Two 503s then success: SDK=3, adapter=3, both return {ok:true}. Unkeyed charge=1 attempt. Read supplied skill, PROMPT.md, TASK.md, companion documents/JSON, measurement, baseline, RESULT.json, actual AGENT_REPORT.md and complete recursive baseline/repo diff. Adapter removes Cockatiel outer retry and delegates directly to makeSDK; SDK and external boundary are byte-unchanged. No second retry layer remains. P0 evidence: RESULT.json preserves missing timeout at untouched.js:2, violations=[], applies=false, proceduresRun=[P0]. Independent execution of shipped P0 scanner reproduces those findings (exit 1, unsupported=[], clean=false). Actual report explicitly records scanner command and SDK-mechanism stop; AIP additionally has matching p0-scan.json. Beyond P0: complete diffs show no timeout, breaker, bulkhead, fallback or new retry implementation; unrelated untouched.js and SDK timeout remain unchanged. Only adapter delegation, three budget regression tests, RESULT.json, and (AIP only) descriptive config metadata were added. Tests/check commands are ordinary verification of the P0-authorized fix. Historical procedure execution cannot be proven from artifacts alone; supplied evidence is consistent with P0 only.; observable check: P0 stopped=True; procedures=['P0']; persistent SDK failure -> exactly SDK three attempts"
   },
   "S3.1|aip": {
     "result": "pass",

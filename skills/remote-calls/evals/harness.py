@@ -86,20 +86,27 @@ def check_one(sid,repo,base):
  done=subprocess.run(['node',str(HERE/'check.mjs'),sid,str(repo)],cwd=repo,capture_output=True,text=True,timeout=30)
  return done.returncode==0,(done.stdout+done.stderr).strip()[-2000:]
 
-def check(work):
+def check(work,only=()):
  work=Path(work).resolve();results={}
  for form in FORMS:
   for name,scenarios in RUNS.items():
    run=work/form/name;repo=run/'repo';base=run/'base';r=p0(repo)
    for sid in scenarios:
+    if only and sid not in only: continue
     if not (run/'AGENT_REPORT.md').exists(): verdict,note='not run','no fresh-agent report'
-    elif not sid.startswith('S0.') and (r.get('applies') is not True or 'P'+sid[1] not in r.get('proceduresRun',[])):
+    elif sid=='S2.3' and 'P0' not in r.get('proceduresRun',[]):
+     verdict,note='not run','P0 did not run'
+    elif sid!='S2.3' and not sid.startswith('S0.') and (r.get('applies') is not True or 'P'+sid[1] not in r.get('proceduresRun',[])):
      verdict,note='not run',f'P{sid[1]} did not run; actual P0 applies={r.get("applies")}, procedures={r.get("proceduresRun")}'
     else:
      try: ok,note=check_one(sid,repo,base)
      except Exception as error: ok,note=False,f'{type(error).__name__}: {error}'
+     if sid=='S2.3':
+      stopped=r.get('applies') is False and r.get('proceduresRun')==['P0']
+      ok=ok and stopped
+      note=f'P0 stopped={stopped}; procedures={r.get("proceduresRun")}; '+note
      verdict='pass' if ok else 'fail'
-     if sid in {'S0.4','S0.5','S3.5'}:
+     if sid in {'S0.4','S0.5','S2.3','S3.5'}:
       judge_path=work/form/'JUDGE.json'
       judge=json.loads(judge_path.read_text()).get(sid) if judge_path.exists() else None
       if not judge: verdict,note='not run','fresh agent ran; independent judgement missing; preliminary: '+note
@@ -111,7 +118,8 @@ def check(work):
     results[f'{sid}|{form}']={'result':verdict,'evidence':note}
  print('| Scenario | SKILL.md | AIP |\n| --- | --- | --- |')
  for scenarios in RUNS.values():
-  for sid in scenarios: print(f'| {sid} | {results[sid+"|skill-md"]["result"]} | {results[sid+"|aip"]["result"]} |')
+  for sid in scenarios:
+   if not only or sid in only: print(f'| {sid} | {results[sid+"|skill-md"]["result"]} | {results[sid+"|aip"]["result"]} |')
  (work/'results.json').write_text(json.dumps(results,indent=2)+'\n')
  return results
 
@@ -163,6 +171,6 @@ if __name__=='__main__':
  args=sys.argv[1:]
  if args==['baseline']: baseline()
  elif len(args)>=2 and args[0]=='prepare': prepare(args[1],args[2:])
- elif len(args)==2 and args[0]=='check': check(args[1])
+ elif len(args)>=2 and args[0]=='check': check(args[1],args[2:])
  elif len(args)==3 and args[0]=='collect': collect(args[1],args[2])
  else: sys.exit(__doc__)
