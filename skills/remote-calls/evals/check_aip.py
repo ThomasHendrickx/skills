@@ -48,6 +48,7 @@ def main():
         check(f"{proc.upper()} has {count} steps (found {n})", n == count)
     check("every step is a P0..P4 node", len(steps) == sum(COUNTS.values()))
     check("scripts exist", all((AIP / s["script"]).is_file() for s in steps.values() if "script" in s))
+    check("source and compiled deterministic helpers are identical", all((ROOT / "scripts" / name).read_bytes() == (AIP / "scripts" / name).read_bytes() for name in ("scan_remote_calls.py", "scan_javascript.cjs", "run_check.py")))
     check("five script steps", sum("script" in s for s in steps.values()) == 5)
 
     missing = [(n, d) for n, s in steps.items() for d in s.get("depends_on", []) if d not in steps]

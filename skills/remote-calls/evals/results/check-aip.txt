@@ -8,6 +8,7 @@ PASS: P3 has 7 steps (found 7)
 PASS: P4 has 5 steps (found 5)
 PASS: every step is a P0..P4 node
 PASS: scripts exist
+PASS: source and compiled deterministic helpers are identical
 PASS: five script steps
 PASS: depends_on targets exist
 PASS: P0 step 1 is the only entry node
