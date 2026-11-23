@@ -1,0 +1,62 @@
+# Rules that only apply inside Zalando: its API ids, audiences, hostnames, permission names and X-Flow-ID.
+# Extend this file next to rest-api.yaml.
+formats: [oas3]
+functionsDir: ./functions
+functions: [zalando]
+rules:
+  zalando-218-api-id-and-audience:
+    description: "MUST contain API meta information (x-api-id and x-audience) (#218)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#218
+    message: "{{error}}"
+    severity: error
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: infoExtensions } }
+  zalando-215-api-identifier:
+    description: "MUST provide API identifiers (#215)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#215
+    message: "{{error}}"
+    severity: error
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: apiIdentifier } }
+  zalando-219-api-audience:
+    description: "MUST provide API audience (#219)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#219
+    message: "{{error}}"
+    severity: error
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: apiAudience } }
+  zalando-224-functional-hostnames:
+    description: "MUST follow naming convention for hostnames (#224)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#224
+    message: "{{error}}"
+    severity: error
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: functionalHostnames } }
+  zalando-223-functional-naming:
+    description: "MUST/SHOULD/MAY use functional naming schema (internal audiences) (#223)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#223
+    message: "{{error}}"
+    severity: warn
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: functionalNaming } }
+  zalando-225-permission-names:
+    description: "MUST follow the naming convention for permissions (scopes) (#225)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#225
+    message: "{{error}}"
+    severity: error
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: permissionNames } }
+  zalando-233-flow-id:
+    description: "MUST support X-Flow-ID (#233)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#233
+    message: "{{error}}"
+    severity: error
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: flowId } }

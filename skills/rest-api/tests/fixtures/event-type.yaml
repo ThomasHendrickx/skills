@@ -1,0 +1,19 @@
+name: order-sales-order.order-placed
+owning_application: order-service
+category: general
+audience: company-internal
+compatibility_mode: compatible
+partition_strategy: hash
+partition_key_fields: [order_number]
+ordering_key_fields: [order_change_counter]
+ordering_instance_ids: [order_number]
+schema:
+  type: json_schema
+  version: 1.0.0
+  schema: >-
+    {"type": "object", "required": ["order_number", "placed_at"], "properties": {
+    "order_number": {"type": "string"},
+    "order_change_counter": {"type": "integer", "format": "int64"},
+    "placed_at": {"type": "string", "format": "date-time"},
+    "grand_total": {"type": "object", "required": ["amount", "currency"], "properties": {
+    "amount": {"type": "number", "format": "decimal"}, "currency": {"type": "string", "format": "iso-4217"}}}}}

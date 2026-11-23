@@ -1,0 +1,117 @@
+# Event type definitions (the guideline's EventType object, one per file or a list), checked against the
+# event rules and, for the payload schema, the API rules that apply to events (#208).
+functionsDir: ./functions
+functions: [zalando]
+rules:
+  zalando-197-event-type-fields:
+    description: "MUST specify and register events as event types (#197)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#197
+    message: "{{error}}"
+    severity: error
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: eventTypeFields } }
+  zalando-213-event-type-name:
+    description: "MUST follow naming convention for event type names (#213)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#213
+    message: "{{error}}"
+    severity: error
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: eventTypeName } }
+  zalando-207-event-ownership:
+    description: "MUST indicate ownership of event types (#207)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#207
+    message: "{{error}}"
+    severity: error
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: eventOwnership } }
+  zalando-245-compatibility-mode:
+    description: "MUST carefully define the compatibility mode (#245)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#245
+    message: "{{error}}"
+    severity: error
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: compatibilityMode } }
+  zalando-198-event-category:
+    description: "MUST ensure that events conform to an event category (#198)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#198
+    message: "{{error}}"
+    severity: error
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: eventCategory } }
+  zalando-196-openapi-schema-object:
+    description: "MUST ensure event schema conforms to OpenAPI schema object (#196)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#196
+    message: "{{error}}"
+    severity: error
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: openApiSchemaObject } }
+  zalando-210-no-additional-properties:
+    description: "SHOULD avoid additionalProperties in event type schemas (#210)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#210
+    message: "{{error}}"
+    severity: warn
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: noAdditionalProperties } }
+  zalando-246-schema-version:
+    description: "MUST use semantic versioning of event type schemas (#246)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#246
+    message: "{{error}}"
+    severity: error
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: eventSchemaVersion } }
+  zalando-242-data-change-ordering:
+    description: "MUST provide explicit event ordering for data change events (#242)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#242
+    message: "{{error}}"
+    severity: error
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: dataChangeOrdering } }
+  zalando-203-general-ordering:
+    description: "SHOULD provide explicit event ordering for general events (#203)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#203
+    message: "{{error}}"
+    severity: warn
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: generalOrdering } }
+  zalando-204-hash-partitioning:
+    description: "SHOULD use the hash partition strategy for data change events (#204)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#204
+    message: "{{error}}"
+    severity: warn
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: hashPartitioning } }
+  zalando-200-sensitive-data:
+    description: "SHOULD avoid writing sensitive data to events (#200)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#200
+    message: "{{error}}"
+    severity: warn
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: sensitiveData } }
+  zalando-208-api-guidelines:
+    description: "MUST define events compliant with overall API guidelines (#208)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#208
+    message: "{{error}}"
+    severity: error
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: eventPayloadMust } }
+  zalando-208-api-guidelines-should:
+    description: "MUST define events compliant with overall API guidelines (their SHOULD rules) (#208)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#208
+    message: "{{error}}"
+    severity: warn
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: eventPayloadShould } }
