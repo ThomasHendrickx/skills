@@ -1,0 +1,723 @@
+# Zalando RESTful API guidelines (https://opensource.zalando.com/restful-api-guidelines/) as Spectral rules.
+# Rule names carry the guideline number. MUST is error, SHOULD is warn. A deviation is an override in the
+# repo's .spectral.yaml, with its reason, decided by the API owner.
+extends: [[spectral:oas, off]]
+formats: [oas3]
+functionsDir: ./functions
+functions: [zalando]
+rules:
+  # #101: a valid OpenAPI document.
+  oas3-schema: error
+  zalando-101-openapi-3:
+    description: "MUST provide API specifications using OpenAPI (3.x) (#101)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#101
+    message: "{{error}}"
+    severity: error
+    formats: [oas2, oas3]
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: openapi3 } }
+  zalando-101-yaml-file:
+    description: "MUST provide API specifications in a single self-contained YAML file (#101)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#101
+    message: "{{error}}"
+    severity: error
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: yamlFile } }
+  zalando-234-durable-references:
+    description: "MUST only use durable and immutable remote references (#234)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#234
+    message: "{{error}}"
+    severity: error
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: durableReferences } }
+  zalando-102-user-manual:
+    description: "SHOULD provide API user manual (#102)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#102
+    message: "{{error}}"
+    severity: warn
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: userManual } }
+  zalando-103-us-english:
+    description: "MUST write APIs using U.S. English (#103)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#103
+    message: "{{error}}"
+    severity: error
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: usEnglish } }
+  zalando-218-meta-information:
+    description: "MUST contain API meta information (#218)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#218
+    message: "{{error}}"
+    severity: error
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: infoFields } }
+  zalando-116-semantic-version:
+    description: "MUST use semantic versioning (#116)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#116
+    message: "{{error}}"
+    severity: error
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: semanticVersion } }
+  zalando-104-secure-endpoints:
+    description: "MUST secure endpoints (#104)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#104
+    message: "{{error}}"
+    severity: error
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: securedEndpoints } }
+  zalando-105-permissions:
+    description: "MUST define and assign permissions (scopes) (#105)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#105
+    message: "{{error}}"
+    severity: error
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: permissions } }
+  zalando-171-number-formats:
+    description: "MUST define a format for number and integer types (#171)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#171
+    message: "{{error}}"
+    severity: error
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: numberFormats } }
+  zalando-238-standard-formats:
+    description: "MUST use standard data formats (#238)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#238
+    message: "{{error}}"
+    severity: error
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: standardFormats } }
+  zalando-238-known-formats:
+    description: "MUST use standard data formats (a format outside the list) (#238)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#238
+    message: "{{error}}"
+    severity: warn
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: knownFormats } }
+  zalando-239-base64url:
+    description: "MUST encode binary data in base64url (#239)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#239
+    message: "{{error}}"
+    severity: error
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: base64url } }
+  zalando-169-date-time-formats:
+    description: "MUST use standard formats for date and time properties (#169)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#169
+    message: "{{error}}"
+    severity: error
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: dateTimeFormats } }
+  zalando-255-appropriate-date-time:
+    description: "SHOULD use appropriate formats for date and time properties (#255)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#255
+    message: "{{error}}"
+    severity: warn
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: appropriateDateTime } }
+  zalando-127-durations:
+    description: "SHOULD use standard formats for time duration and interval properties (#127)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#127
+    message: "{{error}}"
+    severity: warn
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: durations } }
+  zalando-170-code-formats:
+    description: "MUST use standard formats for country, language and currency properties (#170)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#170
+    message: "{{error}}"
+    severity: error
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: codeFormats } }
+  zalando-144-uuid-identifiers:
+    description: "SHOULD only use UUIDs if necessary (#144)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#144
+    message: "{{error}}"
+    severity: warn
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: uuidIdentifiers } }
+  zalando-135-no-api-base-path:
+    description: "SHOULD not use /api as base path (#135)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#135
+    message: "{{error}}"
+    severity: warn
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: noApiBasePath } }
+  zalando-134-plural-resources:
+    description: "MUST pluralize resource names (#134)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#134
+    message: "{{error}}"
+    severity: error
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: pluralResources } }
+  zalando-228-url-friendly-ids:
+    description: "MUST use URL-friendly resource identifiers (#228)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#228
+    message: "{{error}}"
+    severity: error
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: urlFriendlyIds } }
+  zalando-129-kebab-case-segments:
+    description: "MUST use kebab-case for path segments (#129)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#129
+    message: "{{error}}"
+    severity: error
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: kebabCaseSegments } }
+  zalando-136-normalized-paths:
+    description: "MUST use normalized paths without empty path segments and trailing slashes (#136)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#136
+    message: "{{error}}"
+    severity: error
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: normalizedPaths } }
+  zalando-141-verb-free-urls:
+    description: "MUST keep URLs verb-free (#141)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#141
+    message: "{{error}}"
+    severity: error
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: verbFreeUrls } }
+  zalando-142-domain-specific-names:
+    description: "MUST use domain-specific resource names (#142)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#142
+    message: "{{error}}"
+    severity: error
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: domainSpecificNames } }
+  zalando-143-resource-path-segments:
+    description: "MUST identify resources and sub-resources via path segments (#143)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#143
+    message: "{{error}}"
+    severity: error
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: resourcePathSegments } }
+  zalando-143-sub-paths:
+    description: "MUST identify resources and sub-resources via path segments (each sub-path a resource) (#143)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#143
+    message: "{{error}}"
+    severity: warn
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: subPaths } }
+  zalando-146-resource-types:
+    description: "SHOULD limit number of resource types (#146)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#146
+    message: "{{error}}"
+    severity: warn
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: resourceTypeLimit, max: 8 } }
+  zalando-147-sub-resource-levels:
+    description: "SHOULD limit number of sub-resource levels (#147)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#147
+    message: "{{error}}"
+    severity: warn
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: subResourceLevels, max: 3 } }
+  zalando-130-snake-case-query:
+    description: "MUST use snake_case (never camelCase) for query parameters (#130)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#130
+    message: "{{error}}"
+    severity: error
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: snakeCaseQuery } }
+  zalando-137-conventional-query:
+    description: "MUST stick to conventional query parameters (#137)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#137
+    message: "{{error}}"
+    severity: error
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: conventionalQuery } }
+  zalando-167-json-payload:
+    description: "MUST use JSON as payload data interchange format (#167)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#167
+    message: "{{error}}"
+    severity: error
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: jsonPayload } }
+  zalando-167-json-object-request:
+    description: "MUST use JSON as payload data interchange format (a top-level object, if possible) (#167)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#167
+    message: "{{error}}"
+    severity: warn
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: jsonObjectRequest } }
+  zalando-252-single-read-write-schema:
+    description: "SHOULD design single resource schema for reading and writing (#252)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#252
+    message: "{{error}}"
+    severity: warn
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: singleReadWriteSchema } }
+  zalando-172-standard-media-types:
+    description: "SHOULD use standard media types (#172)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#172
+    message: "{{error}}"
+    severity: warn
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: standardMediaTypes } }
+  zalando-120-plural-array-names:
+    description: "SHOULD pluralize array names (#120)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#120
+    message: "{{error}}"
+    severity: warn
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: pluralArrayNames } }
+  zalando-118-snake-case-properties:
+    description: "MUST property names must be snake_case (and never camelCase) (#118)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#118
+    message: "{{error}}"
+    severity: error
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: snakeCaseProperties } }
+  zalando-240-upper-snake-enums:
+    description: "SHOULD declare enum values using UPPER_SNAKE_CASE string (#240)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#240
+    message: "{{error}}"
+    severity: warn
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: upperSnakeEnums } }
+  zalando-235-date-time-names:
+    description: "SHOULD use naming convention for date/time properties (#235)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#235
+    message: "{{error}}"
+    severity: warn
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: dateTimeNames } }
+  zalando-216-maps:
+    description: "SHOULD define maps using additionalProperties (#216)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#216
+    message: "{{error}}"
+    severity: warn
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: maps } }
+  zalando-122-boolean-not-null:
+    description: "MUST not use null for boolean properties (#122)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#122
+    message: "{{error}}"
+    severity: error
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: booleanNotNull } }
+  zalando-124-array-not-null:
+    description: "SHOULD not use null for empty arrays (#124)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#124
+    message: "{{error}}"
+    severity: warn
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: arrayNotNull } }
+  zalando-174-common-field-names:
+    description: "MUST use common field names and semantics (#174)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#174
+    message: "{{error}}"
+    severity: error
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: commonFieldNames } }
+  zalando-249-address-fields:
+    description: "MUST use the common address fields (#249)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#249
+    message: "{{error}}"
+    severity: error
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: addressFields } }
+  zalando-173-money-object:
+    description: "MUST use the common money object (#173)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#173
+    message: "{{error}}"
+    severity: error
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: moneyObject } }
+  zalando-148-get-without-body:
+    description: "MUST use HTTP methods correctly (GET without body) (#148)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#148
+    message: "{{error}}"
+    severity: error
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: getWithoutBody } }
+  zalando-148-delete-without-body:
+    description: "MUST use HTTP methods correctly (DELETE without body) (#148)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#148
+    message: "{{error}}"
+    severity: warn
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: deleteWithoutBody } }
+  zalando-148-server-owned-ids:
+    description: "MUST use HTTP methods correctly (the service creates identifiers) (#148)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#148
+    message: "{{error}}"
+    severity: error
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: serverOwnedIds } }
+  zalando-148-patch-media-types:
+    description: "MUST use HTTP methods correctly (PATCH with a patch media type) (#148)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#148
+    message: "{{error}}"
+    severity: warn
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: patchMediaTypes } }
+  zalando-148-created-location:
+    description: "MUST use HTTP methods correctly (Location for 201 without body) (#148)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#148
+    message: "{{error}}"
+    severity: error
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: createdLocation } }
+  zalando-154-collection-format:
+    description: "MUST define collection format of header and query parameters (#154)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#154
+    message: "{{error}}"
+    severity: error
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: collectionFormat } }
+  zalando-243-official-status-codes:
+    description: "MUST use official HTTP status codes (#243)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#243
+    message: "{{error}}"
+    severity: error
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: officialStatusCodes } }
+  zalando-151-success-and-error-responses:
+    description: "MUST specify success and error responses (#151)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#151
+    message: "{{error}}"
+    severity: error
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: successAndErrorResponses } }
+  zalando-150-common-status-codes:
+    description: "SHOULD only use most common HTTP status codes (#150)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#150
+    message: "{{error}}"
+    severity: warn
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: commonStatusCodes } }
+  zalando-150-status-code-methods:
+    description: "SHOULD only use most common HTTP status codes (for the methods they apply to) (#150)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#150
+    message: "{{error}}"
+    severity: warn
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: statusCodeMethods } }
+  zalando-150-undocumented-status-codes:
+    description: "SHOULD only use most common HTTP status codes (document only what is specific) (#150)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#150
+    message: "{{error}}"
+    severity: warn
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: undocumentedStatusCodes } }
+  zalando-220-specific-status-codes:
+    description: "MUST use most specific HTTP status codes (#220)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#220
+    message: "{{error}}"
+    severity: warn
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: specificStatusCodes } }
+  zalando-152-batch-207:
+    description: "MUST use code 207 for batch or bulk requests (#152)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#152
+    message: "{{error}}"
+    severity: error
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: batch207 } }
+  zalando-153-rate-limit-headers:
+    description: "MUST use code 429 with headers for rate limits (#153)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#153
+    message: "{{error}}"
+    severity: error
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: rateLimitHeaders } }
+  zalando-176-problem-json:
+    description: "MUST support problem JSON (#176)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#176
+    message: "{{error}}"
+    severity: error
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: problemJson } }
+  zalando-176-problem-schema:
+    description: "MUST support problem JSON (the Problem schema) (#176)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#176
+    message: "{{error}}"
+    severity: error
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: problemSchema } }
+  zalando-176-problem-reference:
+    description: "MUST support problem JSON (the current Problem model) (#176)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#176
+    message: "{{error}}"
+    severity: warn
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: problemReference } }
+  zalando-177-no-stack-traces:
+    description: "MUST not expose stack traces (#177)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#177
+    message: "{{error}}"
+    severity: error
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: noStackTraces } }
+  zalando-251-no-redirects:
+    description: "SHOULD not use redirection codes (#251)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#251
+    message: "{{error}}"
+    severity: warn
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: noRedirects } }
+  zalando-132-header-case:
+    description: "SHOULD use kebab-case with uppercase separate words for HTTP headers (#132)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#132
+    message: "{{error}}"
+    severity: warn
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: headerCase } }
+  zalando-178-content-headers:
+    description: "MUST use Content-* headers correctly (#178)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#178
+    message: "{{error}}"
+    severity: error
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: contentHeaders } }
+  zalando-180-location-header:
+    description: "SHOULD use Location header instead of Content-Location header (#180)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#180
+    message: "{{error}}"
+    severity: warn
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: locationHeader } }
+  zalando-183-proprietary-headers:
+    description: "SHOULD use only the specified proprietary Zalando headers (#183)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#183
+    message: "{{error}}"
+    severity: warn
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: proprietaryHeaders } }
+  zalando-164-hypertext-controls:
+    description: "MUST use common hypertext controls (#164)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#164
+    message: "{{error}}"
+    severity: error
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: hypertextControls } }
+  zalando-165-simple-pagination-links:
+    description: "SHOULD use simple hypertext controls for pagination and self-references (#165)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#165
+    message: "{{error}}"
+    severity: warn
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: simplePaginationLinks } }
+  zalando-217-absolute-uris:
+    description: "MUST use full, absolute URI for resource identification (#217)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#217
+    message: "{{error}}"
+    severity: error
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: absoluteUris } }
+  zalando-166-no-link-header:
+    description: "MUST not use link headers with JSON entities (#166)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#166
+    message: "{{error}}"
+    severity: error
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: noLinkHeader } }
+  zalando-156-compression-headers:
+    description: "SHOULD use gzip compression (#156)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#156
+    message: "{{error}}"
+    severity: warn
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: compressionHeaders } }
+  zalando-157-fields-parameter:
+    description: "SHOULD support partial responses via filtering (#157)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#157
+    message: "{{error}}"
+    severity: warn
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: fieldsParameter } }
+  zalando-227-cacheable-documented:
+    description: "MUST document cacheable GET, HEAD, and POST endpoints (#227)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#227
+    message: "{{error}}"
+    severity: error
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: cacheableDocumented } }
+  zalando-159-pagination:
+    description: "MUST support pagination (#159)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#159
+    message: "{{error}}"
+    severity: error
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: pagination } }
+  zalando-160-cursor-pagination:
+    description: "SHOULD prefer cursor-based pagination, avoid offset-based pagination (#160)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#160
+    message: "{{error}}"
+    severity: warn
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: cursorPagination } }
+  zalando-248-page-object:
+    description: "SHOULD use pagination response page object (#248)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#248
+    message: "{{error}}"
+    severity: warn
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: pageObject } }
+  zalando-161-pagination-links:
+    description: "SHOULD use pagination links (#161)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#161
+    message: "{{error}}"
+    severity: warn
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: paginationLinks } }
+  zalando-254-no-total-count:
+    description: "SHOULD avoid a total result count (#254)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#254
+    message: "{{error}}"
+    severity: warn
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: noTotalCount } }
+  zalando-109-conservative-input:
+    description: "SHOULD design APIs conservatively (#109)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#109
+    message: "{{error}}"
+    severity: warn
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: conservativeInput } }
+  zalando-111-open-for-extension:
+    description: "MUST treat OpenAPI specification as open for extension by default (#111)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#111
+    message: "{{error}}"
+    severity: error
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: openForExtension } }
+  zalando-113-avoid-versioning:
+    description: "SHOULD avoid versioning (#113)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#113
+    message: "{{error}}"
+    severity: warn
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: avoidVersioning } }
+  zalando-114-media-type-versioning:
+    description: "MUST use media type versioning (#114)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#114
+    message: "{{error}}"
+    severity: error
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: mediaTypeVersioning } }
+  zalando-115-no-url-versioning:
+    description: "MUST not use URL versioning (#115)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#115
+    message: "{{error}}"
+    severity: error
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: noUrlVersioning } }
+  zalando-110-top-level-object:
+    description: "MUST always return JSON objects as top-level data structures (#110)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#110
+    message: "{{error}}"
+    severity: error
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: topLevelObject } }
+  zalando-112-extensible-enums:
+    description: "SHOULD use open-ended list of values (via examples) for enumeration types (#112)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#112
+    message: "{{error}}"
+    severity: warn
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: extensibleEnums } }
+  zalando-187-deprecation-documented:
+    description: "MUST reflect deprecation in API specifications (#187)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#187
+    message: "{{error}}"
+    severity: error
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: deprecationDocumented } }
+  zalando-189-deprecation-headers:
+    description: "SHOULD add Deprecation and Sunset header to responses (#189)"
+    documentationUrl: https://opensource.zalando.com/restful-api-guidelines/#189
+    message: "{{error}}"
+    severity: warn
+    given: $
+    resolved: false
+    then: { function: zalando, functionOptions: { check: deprecationHeaders } }

@@ -1,0 +1,25 @@
+name: rest-api
+on:
+  pull_request:
+    paths:
+      - skills/rest-api/**
+      - .github/workflows/rest-api.yml
+  push:
+    branches: [main]
+    paths:
+      - skills/rest-api/**
+      - .github/workflows/rest-api.yml
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: skills/rest-api/package-lock.json
+      - run: npm ci --prefix skills/rest-api
+      - run: npm test --prefix skills/rest-api

@@ -1,0 +1,262 @@
+openapi: 3.1.0
+info:
+  title: Sales Order API
+  version: 1.4.0
+  description: Create, read and change the sales orders of the shop.
+  contact:
+    name: Order Team
+    url: https://orders.example.com
+    email: orders@example.com
+externalDocs:
+  description: The user manual of the Sales Order API.
+  url: https://orders.example.com/manual
+servers:
+  - url: https://sales-order.example.com
+security:
+  - BearerAuth: [sales-order.read]
+paths:
+  /sales-orders:
+    get:
+      summary: List sales orders
+      description: Lists the sales orders. Only the orders of the caller's tenant are returned.
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/AcceptEncoding'
+      responses:
+        '200':
+          description: A page of sales orders.
+          headers:
+            Content-Encoding:
+              $ref: '#/components/headers/ContentEncoding'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SalesOrderPage'
+        default:
+          $ref: '#/components/responses/Problem'
+    post:
+      summary: Create a sales order
+      security:
+        - BearerAuth: [sales-order.write]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SalesOrder'
+      responses:
+        '201':
+          description: The created sales order.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SalesOrder'
+        default:
+          $ref: '#/components/responses/Problem'
+  /sales-orders/{sales-order-id}:
+    parameters:
+      - $ref: '#/components/parameters/SalesOrderId'
+    get:
+      summary: Read a sales order
+      responses:
+        '200':
+          description: The sales order.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SalesOrder'
+        default:
+          $ref: '#/components/responses/Problem'
+    patch:
+      summary: Change a sales order
+      security:
+        - BearerAuth: [sales-order.write]
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema:
+              $ref: '#/components/schemas/SalesOrder'
+      responses:
+        '200':
+          description: The changed sales order.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SalesOrder'
+        default:
+          $ref: '#/components/responses/Problem'
+    delete:
+      summary: Delete a sales order
+      security:
+        - BearerAuth: [sales-order.write]
+      responses:
+        '204':
+          description: The sales order is deleted.
+        default:
+          $ref: '#/components/responses/Problem'
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    SalesOrderId:
+      name: sales-order-id
+      in: path
+      required: true
+      description: The identifier of the sales order.
+      schema:
+        type: string
+        pattern: '^[a-z0-9-]{1,64}$'
+        example: so-1234
+    Cursor:
+      name: cursor
+      in: query
+      description: The position of the page to read, from a page link.
+      schema:
+        type: string
+        maxLength: 1024
+    Limit:
+      name: limit
+      in: query
+      description: The number of sales orders on a page.
+      schema:
+        type: integer
+        format: int32
+        minimum: 1
+        maximum: 100
+        default: 20
+    AcceptEncoding:
+      name: Accept-Encoding
+      in: header
+      description: The content encodings the client accepts, gzip among them.
+      schema:
+        type: string
+        maxLength: 128
+        example: gzip
+  headers:
+    ContentEncoding:
+      description: The content encoding of the response.
+      schema:
+        type: string
+        maxLength: 32
+        example: gzip
+  responses:
+    Problem:
+      description: An error; see the status code and the problem object.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+  schemas:
+    SalesOrderPage:
+      type: object
+      required: [items]
+      properties:
+        self:
+          type: string
+          format: uri
+        next:
+          type: string
+          format: uri
+        prev:
+          type: string
+          format: uri
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/SalesOrder'
+    SalesOrder:
+      type: object
+      required: [id, customer_number, grand_total, shipping_address, created_at]
+      properties:
+        id:
+          type: string
+          readOnly: true
+          maxLength: 64
+        customer_number:
+          type: string
+          maxLength: 32
+        status:
+          type: string
+          description: '[Extensible enum](https://opensource.zalando.com/restful-api-guidelines/#112). The state of the order.'
+          examples: [OPEN, SHIPPED, DELIVERED]
+        grand_total:
+          $ref: '#/components/schemas/Money'
+        shipping_address:
+          $ref: '#/components/schemas/Address'
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          examples: ['2026-11-23T08:00:00Z']
+        delivery_date:
+          type: string
+          format: date
+        is_gift:
+          type: boolean
+        item_count:
+          type: integer
+          format: int32
+        tags:
+          type: array
+          items:
+            type: string
+            maxLength: 32
+        customer:
+          $ref: '#/components/schemas/HttpLink'
+    HttpLink:
+      type: object
+      required: [href]
+      properties:
+        href:
+          type: string
+          format: uri
+    Money:
+      type: object
+      required: [amount, currency]
+      properties:
+        amount:
+          type: number
+          format: decimal
+        currency:
+          type: string
+          format: iso-4217
+    Address:
+      type: object
+      required: [street, city, zip, country_code]
+      properties:
+        street:
+          type: string
+          maxLength: 128
+        additional:
+          type: string
+          maxLength: 128
+        city:
+          type: string
+          maxLength: 64
+        zip:
+          type: string
+          maxLength: 16
+        country_code:
+          type: string
+          format: iso-3166-alpha-2
+    Problem:
+      type: object
+      properties:
+        type:
+          type: string
+          format: uri-reference
+        title:
+          type: string
+        status:
+          type: integer
+          format: int32
+        detail:
+          type: string
+        instance:
+          type: string
+          format: uri-reference
