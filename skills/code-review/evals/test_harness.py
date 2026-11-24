@@ -79,6 +79,11 @@ class Prepare(unittest.TestCase):
                              capture_output=True, text=True).stdout
         self.assertIn("src/sync.py", out)
 
+    def test_prompt_asks_for_the_report_as_the_reply(self):
+        text = (self.work / "with-instruction/with-pitfalls/PROMPT.md").read_text()
+        self.assertIn("final reply", text)
+        self.assertNotIn("Write the review report to", text)
+
     def test_instruction_is_only_in_the_with_form(self):
         a = (self.work / "with-instruction/with-pitfalls/skill/SKILL.md").read_text()
         b = (self.work / "without-instruction/with-pitfalls/skill/SKILL.md").read_text()
