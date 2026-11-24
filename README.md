@@ -39,6 +39,12 @@ Ship templates for Aeolus squadrons, in `squadrons/templates/`. squadrons reads 
 
 - `designer`: turns the owner's intent into an approved design with its acceptance criteria as Given/When/Then scenarios.
 
+## Workflow files
+
+Stage-by-stage runs for an agent workflow runner, in `workflows/`, read at a release tag like the skills. Each file names its stages, the role, tier, model family, deadline, input, result schema, checks and tests of each, where each decision goes, and the stuck situations with the decisions each allows. `python workflows/validate.py workflows/*.yaml` checks a file against the format's rules; CI runs it with its tests.
+
+- `bug-fix`: analyse the issue, implement the fix test first, review it in the other model family, fix what the review blocks.
+
 ## Repo companions
 
 These skills state principles. Each repo keeps companion skills (`<repo>-<area>`) for its code shape, folders and what its lint enforces, loaded together with the shared skill they extend.

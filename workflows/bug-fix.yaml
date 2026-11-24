@@ -1,0 +1,79 @@
+# A code-driven bug fix: analyse the issue, implement the fix test first, review it in the
+# other model family, fix what the review blocks, finish.
+# Rule sets per stage are added once the guard defines them.
+#
+# Roles and the skills each loads from this repository, with the repository's companions:
+#   analyst:     software-development, domain-modelling
+#   implementor: software-development, test-driven-development (or behaviour-driven-development
+#                where the repository adopts it), plus the language and area skills the change
+#                touches (typescript, go, web-frontend, rest-api ...)
+#   reviewer:    code-review, pull-request
+#
+# The runner raises loop (a fix that changes nothing, or a blocking finding that comes back)
+# and silent (a stage past its deadline after its retries); stages raise the rest.
+workflow: bug-fix
+version: 1
+limits:
+  runRetries: 1
+  resultRetries: 1
+  leadTurns: 2
+  changeLines: 400
+stages:
+  analyse:
+    role: analyst
+    tier: large
+    family: any
+    deadlineMinutes: 20
+    writesCode: false
+    input: [issue, results.analyse]   # issue: the ticket text; results.analyse: an earlier analysis on replan
+    result: analysis
+    checks: []
+    on:
+      ready: implement
+      needs-info: stuck:needs-info
+  implement:
+    role: implementor
+    tier: large
+    family: any
+    deadlineMinutes: 45
+    writesCode: true
+    input: [issue, results.analyse]
+    result: code
+    checks: [onOrigin, redFirst, noRewrite, size, tests]
+    tests: [unit, interaction, storybook]
+    on:
+      done: review
+      blocked: stuck:blocked
+  review:
+    role: reviewer
+    tier: large
+    family: {otherThan: implement}
+    deadlineMinutes: 20
+    writesCode: false
+    input: [issue, results.analyse, results.implement, results.fix, diff]
+    result: review
+    checks: [onOrigin]
+    rounds: 3
+    on:
+      approve: finish
+      changes: fix
+      blocked: stuck:blocked
+  fix:
+    role: implementor
+    tier: large
+    family: any
+    deadlineMinutes: 30
+    writesCode: true
+    input: [issue, results.analyse, results.implement, results.review, diff]
+    result: code
+    checks: [onOrigin, redFirst, noRewrite, size, tests]
+    tests: [unit, interaction, storybook]
+    on:
+      done: review
+      blocked: stuck:blocked
+stuck:
+  needs-info: [replan, ask, stop]
+  blocked: [replan, one-more-round, ask, stop]
+  rounds: [one-more-round, split, ask, stop]
+  loop: [replan, ask, stop]
+  silent: [one-more-round, ask, stop]
