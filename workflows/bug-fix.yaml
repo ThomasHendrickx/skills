@@ -61,7 +61,7 @@ stages:
   fix:
     role: implementor
     tier: large
-    family: any
+    family: {sameAs: implement}
     deadlineMinutes: 30
     writesCode: true
     input: [issue, results.analyse, results.implement, results.review, diff]

@@ -12,6 +12,8 @@ DECISIONS = {"replan", "one-more-round", "split", "stop", "ask"}
 FAMILIES = {"any", "claude", "gpt"}
 END = "finish"
 STUCK = "stuck:"
+# Every situation the runner can raise; each must list its decisions under stuck.
+SITUATIONS = ("rounds", "loop", "silent", "blocked", "needs-info")
 
 
 class _Loader(yaml.SafeLoader):
@@ -32,12 +34,29 @@ def load(path):
         return yaml.load(f, Loader=_Loader)
 
 
+def origin(stages, name):
+    """The stage whose family `name` takes: itself, or the end of its sameAs chain."""
+    seen = set()
+    while name not in seen:
+        seen.add(name)
+        family = (stages.get(name) or {}).get("family")
+        if isinstance(family, dict) and set(family) == {"sameAs"} and family["sameAs"] in stages:
+            name = family["sameAs"]
+        else:
+            break
+    return name
+
+
 def errors(doc):
     found = []
     stages = doc.get("stages") or {}
     stuck = doc.get("stuck") or {}
     if not stages:
         return ["stages: none"]
+
+    for situation in SITUATIONS:
+        if situation not in stuck:
+            found.append(f"stuck: situation {situation!r} is not listed under stuck")
 
     for situation, decisions in stuck.items():
         for decision in decisions or []:
@@ -67,8 +86,28 @@ def errors(doc):
                 found.append(f"{name}.family: otherThan {other!r} is not a stage")
             elif not stages[other].get("writesCode"):
                 found.append(f"{name}.family: otherThan {other!r} writes no code")
+        elif isinstance(family, dict) and set(family) == {"sameAs"}:
+            same = family["sameAs"]
+            if same not in stages:
+                found.append(f"{name}.family: sameAs {same!r} is not a stage")
+            elif not stages[same].get("writesCode"):
+                found.append(f"{name}.family: sameAs {same!r} writes no code")
         elif family not in FAMILIES:
-            found.append(f"{name}.family: {family!r} is not one of {sorted(FAMILIES)} or {{otherThan: <stage>}}")
+            found.append(
+                f"{name}.family: {family!r} is not one of {sorted(FAMILIES)}, "
+                "{otherThan: <stage>} or {sameAs: <stage>}"
+            )
+
+        # A stage reviewing code is otherThan the family of each stage that writes that code.
+        if isinstance(family, dict) and set(family) == {"otherThan"} and family["otherThan"] in stages:
+            reference = origin(stages, family["otherThan"])
+            for inp in stage.get("input") or []:
+                writer = inp[len("results."):] if isinstance(inp, str) and inp.startswith("results.") else None
+                if writer in stages and stages[writer].get("writesCode") and origin(stages, writer) != reference:
+                    found.append(
+                        f"{name}.family: otherThan {family['otherThan']!r} does not cover {writer!r}, "
+                        "which writes code it reviews"
+                    )
 
         if stage.get("writesCode") and "onOrigin" not in (stage.get("checks") or []):
             found.append(f"{name}: writesCode without onOrigin among its checks")
