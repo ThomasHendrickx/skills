@@ -28,7 +28,7 @@ This installs into `.agents/skills/` (read by Codex) and links each skill into `
 - `web-frontend`: feature structure, state, React rules.
 - `performance`: scale targets and budget, API design, the toolbelt, live updates, proof at scale, UI states.
 - `rest-api`: the Zalando RESTful API and Event Guidelines as Spectral rules, a spec diff for compatibility, versioning and deprecation, a runtime probe, an HTML report per endpoint, and a review list for the rules no tool decides.
-- `code-review`: acceptance criteria and standards as two independent axes.
+- `code-review`: acceptance criteria and standards as two independent axes; reports against a repository's numbered `pitfalls.md` when it has one.
 - `pull-request`: the shape of a pull request body.
 - `writing-for-agents`: skills, CLAUDE.md and other docs agents read.
 - `scenario-video`: an Aeolus use-case or explainer script to a video (the same story without and with Aeolus, or how an Aeolus part works and when to use it), as a page and an MP4; the look, engine and score ship with it.

@@ -1,0 +1,36 @@
+name: code-review
+on:
+  pull_request:
+    paths:
+      - skills/code-review/**
+      - .github/workflows/code-review.yml
+  push:
+    branches: [main]
+    paths:
+      - skills/code-review/**
+      - .github/workflows/code-review.yml
+permissions:
+  contents: read
+jobs:
+  evals:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m unittest discover -s skills/code-review/evals -p 'test_*.py' -v
+      # The agent runs of harness.py (the skill applied to each fixture) need a model: they are run by hand, as for the other skills, and their result is recorded in the pull request.
+      - name: Pitfalls form accepts a correct report and rejects an incomplete one
+        working-directory: skills/code-review/evals
+        run: |
+          f=fixtures/with-pitfalls
+          printf 'Pitfalls checked: P1, P2, P3\nPitfalls hit: P1, P2, P3\n' > "$RUNNER_TEMP/ok.md"
+          python check_report.py "$RUNNER_TEMP/ok.md" $f/pitfalls.md $f/expected.json
+          printf 'Pitfalls checked: P1\nPitfalls hit: none\n' > "$RUNNER_TEMP/bad.md"
+          ! python check_report.py "$RUNNER_TEMP/bad.md" $f/pitfalls.md $f/expected.json
+      - name: Plain form accepts a report without pitfall lines
+        working-directory: skills/code-review/evals
+        run: |
+          printf 'Standards: none\n' > "$RUNNER_TEMP/plain.md"
+          python check_report.py "$RUNNER_TEMP/plain.md" fixtures/without-pitfalls/expected.json

@@ -1,0 +1,22 @@
+--- a/src/sync.py
++++ b/src/sync.py
+@@ -1,2 +1,18 @@
++def push(item):
++    while True:
++        try:
++            return send(item)
++        except TimeoutError:
++            continue
++
++
++def mark_synced(item):
++    try:
++        send(item)
++    except Exception:
++        return True
++    return True
++
++
+ def is_expired(item, today):
+-    return item.due < today
++    return item.due_text < today_text
