@@ -27,7 +27,7 @@ This installs into `.agents/skills/` (read by Codex) and links each skill into `
 - `aip-skill-writing`: writing a SKILL.md that compiles cleanly to AIP and passes its scenarios on both forms.
 - `web-frontend`: feature structure, state, React rules.
 - `performance`: scale targets and budget, API design, the toolbelt, live updates, proof at scale, UI states.
-- `rest-api`: the Zalando RESTful API and Event Guidelines as Spectral rules, a spec diff for compatibility, versioning and deprecation, a runtime probe, and a review list for the rules no tool decides.
+- `rest-api`: the Zalando RESTful API and Event Guidelines as Spectral rules, a spec diff for compatibility, versioning and deprecation, a runtime probe, an HTML report per endpoint, and a review list for the rules no tool decides.
 - `code-review`: acceptance criteria and standards as two independent axes.
 - `pull-request`: the shape of a pull request body.
 - `writing-for-agents`: skills, CLAUDE.md and other docs agents read.
