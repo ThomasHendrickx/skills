@@ -30,6 +30,9 @@ class BugFix(unittest.TestCase):
     def test_reviewer_takes_the_other_family_than_the_implementor(self):
         self.assertEqual(bug_fix()["stages"]["review"]["family"], {"otherThan": "implement"})
 
+    def test_fix_stays_in_the_implementors_family(self):
+        self.assertEqual(bug_fix()["stages"]["fix"]["family"], {"sameAs": "implement"})
+
     def test_first_stage_gets_the_ticket_text(self):
         first = next(iter(bug_fix()["stages"].values()))
         self.assertIn("issue", first["input"])
@@ -59,6 +62,24 @@ class EachRuleRefuses(unittest.TestCase):
 
     def test_rounds_without_rounds_situation(self):
         self.refused(lambda d: d["stuck"].pop("rounds"), "situation 'rounds' is not listed")
+
+    def test_loop_situation_not_listed(self):
+        self.refused(lambda d: d["stuck"].pop("loop"), "situation 'loop' is not listed")
+
+    def test_silent_situation_not_listed(self):
+        self.refused(lambda d: d["stuck"].pop("silent"), "situation 'silent' is not listed")
+
+    def test_fix_in_any_family_can_land_in_the_reviewers(self):
+        self.refused(lambda d: d["stages"]["fix"].update(family="any"),
+                     "review.family: otherThan 'implement' does not cover 'fix'")
+
+    def test_fix_bound_to_the_reviewers_family(self):
+        self.refused(lambda d: d["stages"]["fix"].update(family={"sameAs": "review"}),
+                     "fix.family: sameAs 'review' writes no code")
+
+    def test_same_as_names_no_stage(self):
+        self.refused(lambda d: d["stages"]["fix"].update(family={"sameAs": "build"}),
+                     "fix.family: sameAs 'build' is not a stage")
 
     def test_decision_outside_the_five(self):
         self.refused(lambda d: d["stuck"]["blocked"].append("escalate"),
