@@ -12,6 +12,7 @@ Steps:
 2. Triggers, once per repo: a `.spectral.yaml` that extends this skill's `ruleset/rest-api.yaml` (inside Zalando, `ruleset/zalando-internal.yaml` too); a committed `.githooks/pre-commit` that runs `node <this skill>/scripts/check.mjs --staged`; in `package.json`, `"prepare": "git config core.hooksPath .githooks"` and `"check:api": "node <this skill>/scripts/check.mjs"`; CI runs `npm run check:api -- <every spec>`. Done when a commit of a failing spec is refused.
 3. Spec first (#100): change the OpenAPI 3 spec, one YAML file, before the code. Done when the spec holds the whole change.
 4. Check: `npm run check:api -- <spec>...` lints each spec and diffs it with the main branch (`--base <ref>` for another). The pre-commit hook runs the same on every staged spec. Done when it exits 0.
+   For a readable overview, `node scripts/report.mjs <spec> -o report.html` writes the findings as one page, per rule and per endpoint, most impact first.
 5. Review: walk `references/review.md`. Done when every item the change touches has its answer in the pull request.
 6. Probe: with the service running, `node scripts/probe.mjs <spec> --base-url <url> --header "Authorization: Bearer <token>"`; add `--write-probes` only against a test environment. Done when it exits 0 and no operation the change touches is "not run".
 7. Event types: lint each definition with `ruleset/event-types.yaml` and diff it with `scripts/diff.mjs --events`. Done when both exit 0.
