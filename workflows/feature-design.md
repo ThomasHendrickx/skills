@@ -12,14 +12,17 @@ The design comes from Thomas's answers on #71. `workflows/bug-fix.yaml` stays at
 
 ### Routes: ordered rules
 
-In version 2, each decision under a stage's `on` holds an ordered list of rules. The rules work like a `switch`: the first rule whose condition holds wins, and the last rule has no condition, so every decision has a route. The validator checks that the last rule has no `if`.
+In version 2, each decision under a stage's `on` holds an ordered list of rules. The rules work like a `switch`: the first rule whose condition holds wins, and the last rule has no condition, so every decision has a route. The validator checks that the last rule has no `if` and is not an `ask:` rule.
 
 ```yaml
 on:
   analyzed:
+    - {go: ask:analysis}
     - {if: {size: small}, go: implement}
     - {go: architect}
 ```
+
+An `ask:<gate>` rule has no `if`. When its gate is off for the run, the rule is skipped and the next rule decides; the file shows no condition for it.
 
 A rule's `go` is one of these targets:
 
@@ -28,15 +31,15 @@ A rule's `go` is one of these targets:
 | `<stage>` | Runs that stage. |
 | `finish` | Runs the head check, then finishes the run. |
 | `stuck:<situation>` | Puts the run in a stuck situation. The Lead decides first, and the owner gets a card for what the Lead cannot settle. |
-| `ask:<gate>` | An approval gate: a card to the owner, never to the Lead. |
+| `ask:<gate>` | An approval gate: a card to the owner, never to the Lead. Skipped when the gate is off for the run. |
 | `stop:<reason>` | Stops the run with that reason, which goes on the issue. |
 
 ### Conditions
 
 A condition is either a test on a field of the stage's result, or a state condition.
 
-- **A result field test** names the field and the value it must have, as in `if: {size: small}` or `if: {risk: high}`. The validator checks that the field is in the schema of the stage's result kind.
-- **A state condition** is a name from a short fixed list that the validator and the router both hold. These conditions cover budgets, loops and approvals: a run's state, not a result.
+- **A result field test** names the field and the value it must have, as in `if: {size: small}`, `if: {risk: high}` or `if: {cause: setup}`. The validator checks that the field belongs to the stage's result kind. `validate.py` reads each result kind's fields from its own small list in this repository, and the runner's schema tests check that list against the runner's schemas, so the two cannot drift apart.
+- **A state condition** is a name from a short fixed list that the validator and the router both hold. These conditions cover budgets, loops and approvals: a run's state, not a result. One of them is `qaTests`, which holds while the review is a review of QA's test commits.
 
 ### Decision words
 
@@ -54,21 +57,27 @@ A later version of the bug-fix file moves to these words too. Taking the words f
 
 ### Approval gates
 
-The file declares its gates in their own section, `gates`. Each gate lists its answers, and each answer names the stage it goes to:
+The file declares its gates in their own section, `gates`. Each gate lists its answers. An answer names the stage it goes to, or holds ordered rules as a decision does:
 
 ```yaml
 gates:
   analysis:
-    approve: architect
+    approve:
+      - {if: {size: small}, go: implement}
+      - {go: architect}
     change: analyse
   design:
     approve: implement
     change: architect
 ```
 
+Approving a small analysis goes straight to implement, as the analysis would without the gate.
+
 A route reaches a gate with `ask:<gate>`. The run start message names which gates are on, as in `approvals: [analysis, design]`. A gate is off unless the start message turns it on.
 
 A gate card goes to the owner and never to the Lead. The pick on the card still comes from a Lead: the Lead reads the analysis or the design and names a pick with its why. That Lead turn does not settle the gate; only the owner's answer does.
+
+**Open: the risk on the design card.** With the design gate on, `ask:design` comes before the risk rule, so the owner sees the design card rather than a `high-risk` situation. How the card treats a high risk is not decided yet; the question is with Thomas.
 
 ### The owner's note
 
@@ -76,7 +85,15 @@ When the owner answers a card or a gate with a note, the note goes into the inpu
 
 ### Stuck decisions
 
-Each situation under `stuck` lists the decisions it allows, and each decision names the stage the run goes to. This is aw's decisions table, written per situation:
+Each situation under `stuck` lists the decisions it allows. A decision that names a stage says where the run goes, as in aw's decisions table:
+
+| Decision | Goes to |
+| --- | --- |
+| `restart-analysis` | `analyse` |
+| `design`, `redesign` | `architect` |
+| `implement` | `implement` |
+| `fix` | `fix` |
+| `qa` | `qa` |
 
 ```yaml
 stuck:
@@ -86,19 +103,49 @@ stuck:
     - stop
 ```
 
-`stop` and `ask` stay fixed and name no stage. Overruling a stuck review is allowed: that is aw's `approve`. The blocking items left over are filed as issues, and the pull request names them.
+Five decisions are fixed and name no stage: `stop`, `ask`, `one-more-round` (one more round of the stage's budget), `split` (the change is split) and `approve`. `approve` overrules a stuck review: the blocking items left over are filed as issues, the pull request names them, and the run goes on. `stop` is allowed in every situation.
+
+The situations are aw's 17, each belonging to its stage, with the decisions aw allows:
+
+| Stage | Situation | Decisions |
+| --- | --- | --- |
+| analyse | `needs-info` | `restart-analysis` |
+| architect | `high-risk`, `design-needs-human` | `implement`, `redesign` |
+| implement | `implement-blocked`, `implement-continue`, `implement-protected` | `implement`, `redesign` |
+| fix | `fix-blocked`, `fix-continue`, `fix-needs-redesign`, `fix-protected` | `fix`, `redesign` |
+| review | `review-stuck` | `fix`, `approve` |
+| review | `review-qa-tests` | `qa`, `approve`, `fix` |
+| review | `review-needs-human` | `fix`, `approve`, `redesign` |
+| qa | `qa-fails` | `fix`, `redesign` |
+| qa | `qa-needs-human`, `qa-incomplete`, `qa-protected` | `qa` |
+
+The runner's own situations stay beside them: `rounds` (a budget used up), `loop` (a fix that changes nothing, or a blocking finding that comes back) and `silent` (a stage past its deadline after its retries).
 
 ### Budgets
 
-Loops are budgeted by `rounds` on each stage, as in version 1. Review and QA each have their own `rounds`, and the `one-more-round` decision adds one round.
+Loops are budgeted by `rounds` on each stage, as in version 1, and the `one-more-round` decision adds one round. The feature file takes aw's numbers:
 
-A stage that needs more time answers `continue`. The runner then crews the same stage again in a fresh session, starting from the last pushed commit. A `continues` budget limits how often that can happen.
+| Budget | Where | Number |
+| --- | --- | --- |
+| Review rounds | `review.rounds` | 3 |
+| QA rounds | `qa.rounds` | 3 |
+| Changes to QA's tests | `limits.qaTestChanges` | 2 |
+| Continues | `limits.continues` | 3 |
+
+A stage that needs more time answers `continue`. The runner then crews the same stage again in a fresh session, starting from the last pushed commit, within `continues`. QA's `incomplete` counts as its continue.
 
 The change size limit is 400 lines (`limits.changeLines`), the same as bug-fix and aw. A change over the limit is stuck, and the card offers `split`.
 
 ### The head check
 
 The file names the stages whose result must still hold at the current head: the review's approval and QA's pass. Before the run finishes, the runner checks that no commit landed after either of them. If one did, the run goes back to that stage. A late commit cannot go out unreviewed or untested.
+
+**Open: four points of the head check.** They go to Thomas as questions and are not decided here:
+
+1. How the file spells the head check.
+2. Which stage the run goes back to when both the review's approval and QA's pass are stale.
+3. What is compared with the pushed head: which commit stands for the review's approval and which for QA's pass.
+4. Whether a stuck review that was overruled (`approve`) counts as the review's approval for the commit it overruled.
 
 ## Stages and roles
 
@@ -107,22 +154,25 @@ The stages run in aw's order: analyse, architect (skipped for a small change), i
 | Stage | Role | Result kind | Family | What it decides |
 | --- | --- | --- | --- | --- |
 | `analyse` | analyst | `analysis` | | Whether the issue is in scope, open questions, and `size` (`small` or `standard`) |
-| `architect` | architect | `design` | | The design, its changes, and `risk` |
+| `architect` | architect | `design` | any | The design, its changes, and `risk` |
 | `implement` | implementor | `code` | | The change, test first |
 | `review` | reviewer | `review` | `otherThan: implement` | Approve or request changes. Reviews the implementor's code, and QA's test commits in a round of their own |
-| `qa` | qa | `qa` | `sameAs: implement` | Pass or fail on the end-to-end projects the file names for it |
+| `qa` | qa | `qa` | `sameAs: implement` | Pass or fail on the repository's QA test projects |
 | `fix` | implementor | `code` | `sameAs: implement` | Fixes what the review blocks or what QA found |
 
+- **Architect and QA settings.** Both run on the large tier. The architect's deadline is 20 minutes and QA's 60 minutes. The architect loads software-development and domain-modelling; QA loads software-development and test-driven-development.
 - **Size.** The analyst names `size: small` or `size: standard` by aw's rule. A change is small when it touches one or two files and adds no new component, contract or data change. With `small`, the analyst's plan is the plan and the run skips the architect. Nothing is built before the architect would run, so the runner has nothing to measure. The `size` check on implement still holds the line count afterwards.
 - **Risk.** The architect names `risk` in its result. With `high`, the run is stuck on `high-risk`, and the Lead goes first.
 - **Out of scope.** An analysis that finds the issue out of scope takes the route `stop:out-of-scope`.
-- **QA's limits.** QA is the only stage that runs the end-to-end projects the file names for it. A new check fails a QA result that changed anything outside the test paths. `redFirst` does not apply to QA's commits, which change only tests.
+- **QA's tests.** The repository names QA's test projects and the test paths in its profile: the profile has an optional `qaTests` list beside `tests` and `testPaths`. The QA stage says `tests: fromRepository` and runs the `qaTests` projects. No other stage runs them.
+- **QA's check.** QA's check is `testsOnly`: it fails a QA result that changed anything outside the profile's `testPaths`. `redFirst` does not apply to QA's commits, which change only tests. The bug-fix file does not change.
 - **QA's family.** QA runs in the implementor's family (`sameAs: implement`), so one review in the other family covers the code and QA's tests.
-- **QA and the setup.** When QA cannot run because of the setup, it reports `blocked` with the cause. That goes to the owner as a single card naming the setup, the same way a hook refusal does. A setup fault is fixed at its source.
+- **Reviewing QA's tests.** The same review stage reviews QA's test commits. The `qaTests` state routes its decisions: `request-changes` goes back to QA within `qaTestChanges`, and past it, or on `needs-human`, the run is stuck on `review-qa-tests`.
+- **QA and the setup.** When QA cannot run because of the setup, it answers `needs-human` with `cause: setup`. The rule `if: {cause: setup}` routes it to a setup card: one card to the owner only, never to the Lead, naming the setup, the same way a hook refusal does. A setup fault is fixed at its source, and the owner's `one-more-round` runs QA again. Any other `needs-human` is stuck on `qa-needs-human`.
 
 ## Result kinds
 
-Version 2 adds two result kinds to the runner's schemas and one field to the analysis kind. A route reads these fields, so each field is in a schema the validator can check against.
+Version 2 adds two result kinds to the runner's schemas and one field to the analysis kind. A route reads these fields, so each field is in the list `validate.py` checks against, and the runner's schema tests keep that list equal to the schemas.
 
 - `analysis` adds `size`: `small` or `standard`.
 - `design` is new. It carries `risk` and the changes.
@@ -138,65 +188,74 @@ flowchart TD
   analyse[Analyse] -- "analyst: analyzed" --> ga{analysis gate on?}
   ga -- no --> sz{size small?}
   ga -- yes --> askA[["card: approve the analysis (pick from a Lead)"]]
-  askA -- "owner: approve" --> architect
+  askA -- "owner: approve" --> sz
   askA -- "owner: change, with a note" --> analyse
   sz -- small --> implement
   sz -- standard --> architect
   analyse -- "analyst: needs-info" --> sNI[/stuck: needs-info/]
   analyse -- "analyst: out-of-scope" --> oos([stop: out-of-scope])
+  sNI -. "Lead: restart-analysis" .-> analyse
 
   architect[Architect] -- "architect: ready" --> gd{design gate on?}
-  gd -- yes --> askD[["card: approve the design (pick from a Lead)"]]
+  gd -- yes --> askD[["card: approve the design (pick from a Lead; how it treats a high risk is open)"]]
   askD -- "owner: approve" --> implement
   askD -- "owner: change, with a note" --> architect
   gd -- no --> rk{risk high?}
   rk -- yes --> sHR[/stuck: high-risk/]
   rk -- no --> implement
-  architect -- "architect: needs-human" --> sDN[/stuck: design needs a human/]
+  architect -- "architect: needs-human" --> sDN[/stuck: design-needs-human/]
   sHR -. "Lead: implement" .-> implement
   sHR -. "Lead: redesign" .-> architect
 
   implement[Implement] -- "implementor: done" --> review
-  implement -- "continue, within continues" --> implement
-  implement -- "implementor: blocked" --> sIB[/stuck: implement blocked/]
+  implement -- "implementor: continue, within continues" --> implement
+  implement -- "implementor: continue, continues used up" --> sIC[/stuck: implement-continue/]
+  implement -- "implementor: blocked" --> sIB[/stuck: implement-blocked/]
 
   review[Review] -- "reviewer: approve" --> qa
-  review -- "request-changes, within rounds" --> fix
-  review -- "rounds used up, or blocking items come back" --> sRS[/stuck: review stuck/]
-  review -- "reviewer: needs-human" --> sRH[/stuck: review needs a human/]
+  review -- "reviewer: request-changes, within rounds" --> fix
+  review -- "rounds used up, or blocking items come back" --> sRS[/stuck: review-stuck/]
+  review -- "reviewer: needs-human" --> sRH[/stuck: review-needs-human/]
   sRS -. "Lead: fix" .-> fix
   sRS -. "Lead: approve, overrule; leftovers filed as issues" .-> qa
 
-  fix[Fix] -- "done" --> review
-  fix -- "continue, within continues" --> fix
-  fix -- "no-change, blocked, redesign" --> sFX[/stuck: fix/]
+  fix[Fix] -- "implementor: done" --> review
+  fix -- "implementor: continue, within continues" --> fix
+  fix -- "implementor: continue, continues used up" --> sFC[/stuck: fix-continue/]
+  fix -- "implementor: blocked" --> sFB[/stuck: fix-blocked/]
+  fix -- "implementor: redesign" --> sFR[/stuck: fix-needs-redesign/]
+  fix -- "implementor: no-change, after a review" --> sRS
+  fix -- "implementor: no-change, after QA's fail" --> sQF
 
   qa[QA] -- "qa: pass" --> head{head check: review approval and QA pass at the head?}
-  qa -- "test commits" --> reviewQA[review round of QA's tests]
-  reviewQA -- approve --> head
-  reviewQA -- request-changes --> qa
-  qa -- "fail, within rounds" --> fix
-  qa -- "defects come back, or rounds used up" --> sQF[/stuck: QA fails/]
-  qa -- incomplete --> qa
-  qa -- "blocked, cause setup" --> cardSetup[["card to the owner: the setup"]]
+  qa -- "qa: pass, with test commits" --> review
+  review -- "reviewer: approve, QA's tests" --> head
+  review -- "reviewer: request-changes, QA's tests, within qaTestChanges" --> qa
+  review -- "QA's tests: qaTestChanges used up, or reviewer: needs-human" --> sRQ[/stuck: review-qa-tests/]
+  qa -- "qa: fail, within rounds" --> fix
+  qa -- "defects come back, or rounds used up" --> sQF[/stuck: qa-fails/]
+  qa -- "qa: incomplete, within continues" --> qa
+  qa -- "qa: incomplete, continues used up" --> sQI[/stuck: qa-incomplete/]
+  qa -- "qa: needs-human, cause setup" --> cardSetup[["card to the owner only: the setup"]]
+  qa -- "qa: needs-human" --> sQH[/stuck: qa-needs-human/]
   cardSetup -. "owner: one-more-round" .-> qa
 
   head -- yes --> finish([finish: pull request ready])
   head -- "commit after the review's approval" --> review
   head -- "commit after QA's pass" --> qa
 
-  sNI & sHR & sDN & sIB & sRS & sRH & sFX & sQF -. stop .-> stopped([stop])
+  sNI & sHR & sDN & sIC & sIB & sRS & sRH & sFC & sFB & sFR & sRQ & sQF & sQI & sQH -. stop .-> stopped([stop])
 ```
 
 What the edges mean:
 
 1. **Happy path.** Analyse (standard size, no gates), then the architect (low or medium risk), implement, review approves, QA passes, the head check holds, finish.
 2. **Small change.** `size: small` skips the architect, and the analyst's plan goes to implement.
-3. **Gates.** With a gate on, the run waits for the owner's answer. `approve` goes on, and `change` with a note goes back to the stage that wrote the analysis or the design.
-4. **High risk.** The run is stuck on `high-risk`. The decisions name where it goes: implement anyway, redesign at the architect, or stop.
-5. **Review loop.** `request-changes` goes to fix and back to review, within the review's `rounds`. Once the rounds are used up, or a blocking item comes back, the run is stuck. A stuck review can be overruled: the leftover items are filed as issues, the pull request names them, and the run goes on.
-6. **QA loop.** `fail` goes to fix, then review, then QA again, within QA's `rounds`. QA's own test commits get a review round of their own: its changes go back to QA, and its approval goes on to the head check. A QA result that changed anything outside the test paths fails its checks. Defects that come back, or rounds used up, make the run stuck.
-7. **More time.** `continue` crews the same stage again, fresh, from the last pushed commit, within the `continues` budget.
-8. **Setup.** QA `blocked` with cause `setup` is one card to the owner naming the setup.
-9. **Head check.** A commit after the review's approval sends the run back to review. A commit after QA's pass sends it back to QA.
+3. **Gates.** With a gate on, the run waits for the owner's answer; with it off, its `ask:` rule is skipped. `approve` goes on: a small analysis straight to implement, a standard one to the architect, a design to implement. `change` with a note goes back to the stage that wrote the analysis or the design.
+4. **High risk.** With the design gate off, the run is stuck on `high-risk`. The decisions name where it goes: implement anyway, redesign at the architect, or stop. With the design gate on, how the design card treats a high risk is open.
+5. **Review loop.** `request-changes` goes to fix and back to review, within the review's `rounds`. Once the rounds are used up, or a blocking item comes back, the run is stuck on `review-stuck`. A stuck review can be overruled with `approve`: the leftover items are filed as issues, the pull request names them, and the run goes on.
+6. **QA loop.** `fail` goes to fix, then review, then QA again, within QA's `rounds`. QA's own test commits go to the same review stage, where the `qaTests` state routes them: `request-changes` goes back to QA within `qaTestChanges`, and the approval goes on to the head check. A QA result that changed anything outside the test paths fails its `testsOnly` check. Defects that come back, or rounds used up, make the run stuck on `qa-fails`.
+7. **More time.** `continue` crews the same stage again, fresh, from the last pushed commit, within the `continues` budget. QA's `incomplete` counts as its continue. Past the budget the run is stuck.
+8. **Setup.** QA's `needs-human` with `cause: setup` is one card to the owner only, naming the setup. The owner's `one-more-round` runs QA again.
+9. **Head check.** A commit after the review's approval sends the run back to review. A commit after QA's pass sends it back to QA. Four of its points are open (see [The head check](#the-head-check)).
 10. **Stops.** `out-of-scope` stops the run with its reason. `stop` is a decision available in every stuck situation.
