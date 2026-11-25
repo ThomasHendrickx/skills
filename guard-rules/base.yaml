@@ -1,0 +1,7 @@
+name: base
+description: Protect branches from destructive git actions and guard rule files from writes.
+rules:
+  git:
+    deny: [force-push, rewrite-history, delete-branch]
+  writePaths:
+    deny: ["guard-rules/**"]

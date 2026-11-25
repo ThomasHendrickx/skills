@@ -1,0 +1,5 @@
+name: no-push
+description: Refuse git push.
+rules:
+  git:
+    deny: [push]
