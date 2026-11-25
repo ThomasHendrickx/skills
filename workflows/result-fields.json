@@ -1,26 +1,26 @@
 {
   "analysis": [
-    "stage", "step", "decision", "summary", "commit", "files", "tests", "findings", "criteria", "note",
+    "task", "issue", "status", "pr", "runId", "stage", "step", "decision", "summary", "commit", "files", "tests", "findings", "criteria", "note",
     "size", "plan", "cause"
   ],
   "code": [
-    "stage", "step", "decision", "summary", "commit", "files", "tests", "findings", "criteria", "note",
+    "task", "issue", "status", "pr", "runId", "stage", "step", "decision", "summary", "commit", "files", "tests", "findings", "criteria", "note",
     "redTestFiles"
   ],
   "design": [
-    "stage", "step", "decision", "summary", "commit", "files", "tests", "findings", "criteria", "note",
+    "task", "issue", "status", "pr", "runId", "stage", "step", "decision", "summary", "commit", "files", "tests", "findings", "criteria", "note",
     "risk", "changes"
   ],
   "review": [
-    "stage", "step", "decision", "summary", "commit", "files", "tests", "findings", "criteria", "note",
+    "task", "issue", "status", "pr", "runId", "stage", "step", "decision", "summary", "commit", "files", "tests", "findings", "criteria", "note",
     "blocking"
   ],
   "qa": [
-    "stage", "step", "decision", "summary", "commit", "files", "tests", "findings", "criteria", "note",
+    "task", "issue", "status", "pr", "runId", "stage", "step", "decision", "summary", "commit", "files", "tests", "findings", "criteria", "note",
     "cause", "automation", "defects", "failed"
   ],
   "lead": [
-    "stage", "step", "decision", "summary", "commit", "files", "tests", "findings", "criteria", "note",
+    "task", "issue", "status", "pr", "runId", "stage", "step", "decision", "summary", "commit", "files", "tests", "findings", "criteria", "note",
     "situation", "pick", "why"
   ]
 }

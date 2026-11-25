@@ -320,6 +320,9 @@ def errors(doc):
 
     first = next(iter(stages))
     reached, todo = {first}, [first]
+    if version == 2:
+        todo.extend(f"{STUCK}{situation}" for situation in RUNNER_SITUATIONS
+                    if f"{STUCK}{situation}" in routes)
     while todo:
         for target in routes[todo.pop()]:
             if target in routes and target not in reached:
