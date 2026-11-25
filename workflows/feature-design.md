@@ -134,59 +134,58 @@ The happy path is drawn in bold. Every other edge is an unhappy path: a gate, a 
 
 ```mermaid
 flowchart TD
-  start([run start]) ==> analyse
+  start([run start: which gates are on]) --> analyse
+  analyse[Analyse] -- "analyst: analyzed" --> ga{analysis gate on?}
+  ga -- no --> sz{size small?}
+  ga -- yes --> askA[["card: approve the analysis (pick from a Lead)"]]
+  askA -- "owner: approve" --> architect
+  askA -- "owner: change, with a note" --> analyse
+  sz -- small --> implement
+  sz -- standard --> architect
+  analyse -- "analyst: needs-info" --> sNI[/stuck: needs-info/]
+  analyse -- "analyst: out-of-scope" --> oos([stop: out-of-scope])
 
-  analyse -- analyzed --> ga{analysis gate on?}
-  ga == no ==> sz{size small?}
-  ga -- yes --> askA[[ask:analysis<br/>card to the owner,<br/>pick from a Lead]]
-  askA -- approve --> architect
-  askA -- change, with note --> analyse
-  sz -- yes --> implement
-  sz == no ==> architect
-  analyse -- needs-info --> sNI[/stuck:needs-info/]
-  analyse -- out-of-scope --> stopOOS([stop:out-of-scope])
+  architect[Architect] -- "architect: ready" --> gd{design gate on?}
+  gd -- yes --> askD[["card: approve the design (pick from a Lead)"]]
+  askD -- "owner: approve" --> implement
+  askD -- "owner: change, with a note" --> architect
+  gd -- no --> rk{risk high?}
+  rk -- yes --> sHR[/stuck: high-risk/]
+  rk -- no --> implement
+  architect -- "architect: needs-human" --> sDN[/stuck: design needs a human/]
+  sHR -. "Lead: implement" .-> implement
+  sHR -. "Lead: redesign" .-> architect
 
-  architect -- ready --> gd{design gate on?}
-  gd -- yes --> askD[[ask:design<br/>card to the owner,<br/>pick from a Lead]]
-  askD -- approve --> implement
-  askD -- change, with note --> architect
-  gd == no ==> rk{risk high?}
-  rk -- yes --> sHR[/stuck:high-risk/]
-  rk == no ==> implement
-  architect -- needs-human --> sDN[/stuck: design needs a human/]
+  implement[Implement] -- "implementor: done" --> review
+  implement -- "continue, within continues" --> implement
+  implement -- "implementor: blocked" --> sIB[/stuck: implement blocked/]
 
-  implement == done ==> review
-  implement -- continue, within continues --> implement
-  implement -- blocked --> sIB[/stuck: implement blocked/]
+  review[Review] -- "reviewer: approve" --> qa
+  review -- "request-changes, within rounds" --> fix
+  review -- "rounds used up, or blocking items come back" --> sRS[/stuck: review stuck/]
+  review -- "reviewer: needs-human" --> sRH[/stuck: review needs a human/]
+  sRS -. "Lead: fix" .-> fix
+  sRS -. "Lead: approve, overrule; leftovers filed as issues" .-> qa
 
-  review == approve ==> qa
-  review -- request-changes, within rounds --> fix
-  review -- rounds used up or blocking items come back --> sRS[/stuck: review stuck/]
-  review -- needs-human --> sRH[/stuck: review needs a human/]
+  fix[Fix] -- "done" --> review
+  fix -- "continue, within continues" --> fix
+  fix -- "no-change, blocked, redesign" --> sFX[/stuck: fix/]
 
-  fix -- done --> review
-  fix -- continue, within continues --> fix
-  fix -- no-change, blocked, redesign --> sFX[/stuck: fix/]
-
-  qa == pass ==> head{head check:<br/>review approval and<br/>QA pass at head?}
-  qa -- test commits --> reviewQA[review round<br/>of QA's tests]
+  qa[QA] -- "qa: pass" --> head{head check: review approval and QA pass at the head?}
+  qa -- "test commits" --> reviewQA[review round of QA's tests]
   reviewQA -- approve --> head
   reviewQA -- request-changes --> qa
-  qa -- fail, within rounds --> fix
-  qa -- defects come back or rounds used up --> sQF[/stuck: QA fails/]
+  qa -- "fail, within rounds" --> fix
+  qa -- "defects come back, or rounds used up" --> sQF[/stuck: QA fails/]
   qa -- incomplete --> qa
-  qa -- blocked, cause setup --> cardSetup[[one card to the owner<br/>naming the setup]]
+  qa -- "blocked, cause setup" --> cardSetup[["card to the owner: the setup"]]
+  cardSetup -. "owner: one-more-round" .-> qa
 
-  head == yes ==> finish([finish: pull request])
-  head -- commit after the review's approval --> review
-  head -- commit after QA's pass --> qa
+  head -- yes --> finish([finish: pull request ready])
+  head -- "commit after the review's approval" --> review
+  head -- "commit after QA's pass" --> qa
 
-  sHR -. implement .-> implement
-  sHR -. redesign .-> architect
-  sRS -. fix .-> fix
-  sRS -. approve: overrule, leftovers filed as issues .-> qa
   sNI & sHR & sDN & sIB & sRS & sRH & sFX & sQF -. stop .-> stopped([stop])
-  cardSetup -. one-more-round .-> qa
 ```
 
 What the edges mean:
