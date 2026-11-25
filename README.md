@@ -47,6 +47,8 @@ Stage-by-stage runs for an agent workflow runner, in `workflows/`, read at a rel
 
 - `bug-fix`: analyse the issue, implement the fix test first, review it in the other model family, fix what the review blocks.
 
+The feature workflow and format version 2 are designed in `workflows/feature-design.md`.
+
 ## Repo companions
 
 These skills state principles. Each repo keeps companion skills (`<repo>-<area>`) for its code shape, folders and what its lint enforces, loaded together with the shared skill they extend.
