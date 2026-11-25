@@ -40,7 +40,7 @@ stages:
     input: [issue, results.analyse]
     result: code
     checks: [onOrigin, redFirst, noRewrite, size, tests]
-    tests: [unit, interaction, storybook]
+    tests: fromRepository
     on:
       done: review
       blocked: stuck:blocked
@@ -67,7 +67,7 @@ stages:
     input: [issue, results.analyse, results.implement, results.review, diff]
     result: code
     checks: [onOrigin, redFirst, noRewrite, size, tests]
-    tests: [unit, interaction, storybook]
+    tests: fromRepository
     on:
       done: review
       blocked: stuck:blocked
