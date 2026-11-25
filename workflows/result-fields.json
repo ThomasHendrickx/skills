@@ -1,0 +1,26 @@
+{
+  "analysis": [
+    "task", "issue", "status", "pr", "runId", "stage", "step", "decision", "summary", "commit", "files", "tests", "findings", "criteria", "note",
+    "size", "plan", "cause"
+  ],
+  "code": [
+    "task", "issue", "status", "pr", "runId", "stage", "step", "decision", "summary", "commit", "files", "tests", "findings", "criteria", "note",
+    "redTestFiles"
+  ],
+  "design": [
+    "task", "issue", "status", "pr", "runId", "stage", "step", "decision", "summary", "commit", "files", "tests", "findings", "criteria", "note",
+    "risk", "changes"
+  ],
+  "review": [
+    "task", "issue", "status", "pr", "runId", "stage", "step", "decision", "summary", "commit", "files", "tests", "findings", "criteria", "note",
+    "blocking"
+  ],
+  "qa": [
+    "task", "issue", "status", "pr", "runId", "stage", "step", "decision", "summary", "commit", "files", "tests", "findings", "criteria", "note",
+    "cause", "automation", "defects", "failed"
+  ],
+  "lead": [
+    "task", "issue", "status", "pr", "runId", "stage", "step", "decision", "summary", "commit", "files", "tests", "findings", "criteria", "note",
+    "situation", "pick", "why"
+  ]
+}

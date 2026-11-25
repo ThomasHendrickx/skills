@@ -1,6 +1,7 @@
 """The validator holds every rule of the workflow file format, and bug-fix.yaml passes it."""
 
 import copy
+import json
 import pathlib
 import unittest
 
@@ -23,6 +24,10 @@ class EveryWorkflowFile(unittest.TestCase):
 
 
 class BugFix(unittest.TestCase):
+    def test_bug_fix_stays_at_version_one(self):
+        self.assertEqual(bug_fix()["version"], 1)
+        self.assertEqual(errors(bug_fix()), [])
+
     def test_on_stays_a_key(self):
         # YAML 1.1 reads a bare `on` as true; the format means the word.
         self.assertIn("on", bug_fix()["stages"]["analyse"])
@@ -110,6 +115,239 @@ class EachRuleRefuses(unittest.TestCase):
     def test_family_outside_the_four(self):
         self.refused(lambda d: d["stages"]["analyse"].update(family="gemini"),
                      "analyse.family: 'gemini'")
+
+
+V2_SITUATIONS = (
+    "rounds", "loop", "silent", "needs-info", "high-risk", "design-needs-human",
+    "implement-blocked", "implement-continue", "implement-protected", "fix-blocked",
+    "fix-continue", "fix-needs-redesign", "fix-protected", "review-stuck",
+    "review-qa-tests", "review-needs-human", "qa-fails", "qa-needs-human",
+    "qa-incomplete", "qa-protected", "qa-setup",
+)
+
+
+class VersionTwo(unittest.TestCase):
+    def setUp(self):
+        self.doc = {
+            "version": 2,
+            "limits": {"continues": 3, "qaTestChanges": 2},
+            "stages": {
+                "analyse": {
+                    "family": "any", "result": "analysis", "on": {
+                        "analyzed": [
+                            {"go": "ask:analysis"},
+                            {"if": {"size": "small"}, "go": "implement"},
+                            {"go": "implement"},
+                        ],
+                        "needs-info": [{"go": "stuck:needs-info"}],
+                        "out-of-scope": [{"go": "stop:out-of-scope"}],
+                    },
+                },
+                "architect": {
+                    "family": "any", "result": "design", "on": {
+                        "ready": [
+                            {"if": {"risk": "high"}, "go": "stuck:high-risk"},
+                            {"go": "implement"},
+                        ],
+                    },
+                },
+                "implement": {"family": "any", "result": "code", "on": {"done": [{"go": "review"}]}},
+                "review": {
+                    "family": "any", "result": "review", "rounds": 3, "on": {
+                        "approve": [{"if": "qaTests", "go": "finish"}, {"go": "qa"}],
+                        "request-changes": [{"go": "fix"}],
+                        "needs-human": [{"go": "stuck:review-needs-human"}],
+                    },
+                },
+                "qa": {
+                    "family": "any", "result": "qa", "writesCode": True, "rounds": 3,
+                    "checks": ["onOrigin", "testsOnly"], "tests": "fromRepository", "on": {
+                        "pass": [{"go": "finish"}],
+                        "needs-human": [
+                            {"if": {"cause": "setup"}, "go": "stuck:qa-setup"},
+                            {"go": "stuck:qa-needs-human"},
+                        ],
+                    },
+                },
+                "fix": {"family": "any", "result": "code", "on": {"done": [{"go": "review"}]}},
+            },
+            "gates": {
+                "analysis": {
+                    "approve": [
+                        {"if": {"size": "small"}, "go": "implement"},
+                        {"go": "architect"},
+                    ],
+                    "change": "analyse",
+                },
+            },
+            "stuck": {situation: ["stop"] for situation in V2_SITUATIONS},
+        }
+        self.doc["stuck"].update({
+            "needs-info": [{"restart-analysis": "analyse"}, "ask", "stop"],
+            "high-risk": [{"implement": "implement"}, {"redesign": "architect"}, "stop"],
+            "review-needs-human": [{"fix": "fix"}, {"design": "architect"}, "approve", "stop"],
+            "qa-needs-human": [{"qa": "qa"}, "stop"],
+            "qa-setup": ["one-more-round", "stop"],
+            "rounds": ["one-more-round", "split", "ask", "stop"],
+        })
+        self.rules = self.doc["stages"]["analyse"]["on"]["analyzed"]
+
+    def refused(self, expected):
+        found = errors(self.doc)
+        self.assertTrue(any(expected in error for error in found), found)
+
+    def test_valid_v2_with_no_head_check_key(self):
+        self.assertEqual(errors(self.doc), [])
+
+    def test_only_integer_versions_one_and_two_are_supported(self):
+        for value in (None, True, "2", 2.0, 0, 3, []):
+            with self.subTest(value=value):
+                self.doc["version"] = value
+                self.refused("version:")
+        del self.doc["version"]
+        self.refused("version:")
+
+    def test_decision_needs_a_non_empty_rule_list(self):
+        for value in ("implement", [], {}):
+            with self.subTest(value=value):
+                self.doc["stages"]["analyse"]["on"]["analyzed"] = value
+                self.refused("ordered rule list")
+
+    def test_rule_needs_a_go_target_and_has_only_if_and_go_keys(self):
+        for rule in ("implement", {"if": "qaTests"}, {"go": "implement", "when": "qaTests"}):
+            with self.subTest(rule=rule):
+                self.rules[1] = rule
+                self.refused("analyse.on.analyzed[2]")
+
+    def test_final_rule_has_no_if_even_when_null(self):
+        for condition in ("qaTests", None):
+            with self.subTest(condition=condition):
+                self.rules[-1]["if"] = condition
+                self.refused("last rule")
+
+    def test_final_rule_cannot_ask(self):
+        self.rules[-1]["go"] = "ask:analysis"
+        self.refused("last rule")
+
+    def test_ask_rule_has_no_if_and_names_a_declared_gate(self):
+        self.rules[0]["if"] = "qaTests"
+        self.refused("ask rule cannot have if")
+        self.rules[0] = {"go": "ask:missing"}
+        self.refused("gate 'missing' is not listed")
+
+    def test_go_target_must_be_a_stage_or_a_supported_special_target(self):
+        for target in ("missing", "stop:", "ask:", "stuck:", {"stop": "reason"}):
+            with self.subTest(target=target):
+                self.rules[1]["go"] = target
+                self.refused("analyse.on.analyzed[2].go")
+        self.rules[1]["go"] = "stuck:qa-fails"
+        del self.doc["stuck"]["qa-fails"]
+        self.refused("situation 'qa-fails' is not listed")
+
+    def test_condition_is_one_result_field_or_a_known_state(self):
+        for condition in ({"risk": "high"}, {"size": "small", "risk": "high"},
+                          "unknown", "approveSpec", "budget:continues", [], None):
+            with self.subTest(condition=condition):
+                self.rules[1]["if"] = condition
+                self.refused("analyse.on.analyzed[2].if")
+
+    def test_aw_state_predicates_are_accepted_as_scalars(self):
+        for name in ("qaTests", "qaLoop", "reviewLoop", "afterQaFail"):
+            with self.subTest(name=name):
+                self.rules[1]["if"] = name
+                self.assertEqual(errors(self.doc), [])
+
+    def test_result_fields_are_shared_data(self):
+        with (HERE / "result-fields.json").open() as f:
+            fields = json.load(f)
+        self.assertEqual(set(fields), {"analysis", "code", "design", "review", "qa", "lead"})
+        for stage in self.doc["stages"].values():
+            for field in fields[stage["result"]]:
+                with self.subTest(kind=stage["result"], field=field):
+                    rules = next(iter(stage["on"].values()))
+                    rules.insert(0, {"if": {field: "value"}, "go": "finish"})
+                    self.assertEqual(errors(self.doc), [])
+                    rules.pop(0)
+
+    def test_shared_top_level_fields_are_available_for_every_result(self):
+        with (HERE / "result-fields.json").open() as f:
+            fields = json.load(f)
+        for kind, names in fields.items():
+            with self.subTest(kind=kind):
+                self.assertTrue({"task", "issue", "status", "pr", "runId"} <= set(names))
+
+    def test_gate_answers_must_name_stages_or_use_ordered_rules(self):
+        for answer in ("missing", "finish", [{"if": "qaTests", "go": "architect"}]):
+            with self.subTest(answer=answer):
+                self.doc["gates"]["analysis"]["approve"] = answer
+                self.refused("gates.analysis.approve")
+
+    def test_gate_field_tests_use_the_asking_stages_result(self):
+        self.doc["gates"]["analysis"]["approve"][0]["if"] = {"risk": "high"}
+        self.refused("gates.analysis.approve[1].if")
+        self.doc["gates"]["analysis"]["approve"][0]["if"] = {"size": "small"}
+        self.doc["stages"]["architect"]["on"]["ready"].insert(0, {"go": "ask:analysis"})
+        self.refused("gates.analysis.approve[1].if")
+
+    def test_gate_field_tests_work_through_another_gate(self):
+        self.doc["gates"]["analysis"]["approve"].insert(0, {"go": "ask:another"})
+        self.doc["gates"]["another"] = {
+            "approve": [{"if": {"size": "small"}, "go": "implement"}, {"go": "architect"}],
+        }
+        self.assertEqual(errors(self.doc), [])
+        self.doc["gates"]["another"]["approve"][0]["if"] = {"risk": "high"}
+        self.refused("gates.another.approve[1].if")
+
+    def test_stuck_situation_must_be_known(self):
+        self.doc["stuck"]["blocked"] = ["stop"]
+        self.refused("stuck.blocked")
+
+    def test_runner_situations_must_be_declared(self):
+        for situation in ("rounds", "loop", "silent"):
+            with self.subTest(situation=situation):
+                decisions = self.doc["stuck"].pop(situation)
+                self.refused(f"situation {situation!r} is not listed")
+                self.doc["stuck"][situation] = decisions
+
+    def test_stuck_decisions_use_the_fixed_names_and_stage_table(self):
+        for decision in ("replan", "redesign", {"restart-analysis": "architect"},
+                         {"approve": "qa"}, {"ask": "qa"}, {"unknown": "qa"}):
+            with self.subTest(decision=decision):
+                self.doc["stuck"]["needs-info"].append(decision)
+                self.refused("stuck.needs-info")
+                self.doc["stuck"]["needs-info"].pop()
+        del self.doc["stages"]["fix"]
+        self.refused("stuck.review-needs-human")
+
+    def test_stuck_stage_targets_count_toward_reachability(self):
+        del self.doc["stages"]["review"]["on"]["request-changes"]
+        self.assertEqual(errors(self.doc), [])
+        self.doc["stuck"]["review-needs-human"].remove({"fix": "fix"})
+        self.refused("fix: not reachable from analyse")
+
+    def test_runner_stuck_decision_makes_stage_reachable(self):
+        del self.doc["stages"]["analyse"]["on"]["analyzed"]
+        self.doc["stuck"]["rounds"] = [{"redesign": "architect"}, "stop"]
+        self.assertNotIn("architect: not reachable from analyse", errors(self.doc))
+
+    def test_continues_and_qa_test_changes_accept_non_negative_integers(self):
+        for key in ("continues", "qaTestChanges"):
+            for value in (-1, True, "2", 2.0, None):
+                with self.subTest(budget=key, value=value):
+                    self.doc["limits"][key] = value
+                    self.refused(f"limits.{key}")
+            self.doc["limits"][key] = 0
+            self.assertEqual(errors(self.doc), [])
+
+    def test_v2_checks_and_qa_test_source_are_validated(self):
+        qa = self.doc["stages"]["qa"]
+        qa["checks"].append("testOnly")
+        self.refused("qa.checks")
+        qa["checks"].pop()
+        qa["tests"] = ["end-to-end"]
+        self.assertEqual(errors(self.doc), [])
+        qa["tests"] = "fromProfile"
+        self.refused("qa.tests")
 
 
 if __name__ == "__main__":
