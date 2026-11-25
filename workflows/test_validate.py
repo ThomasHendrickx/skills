@@ -44,6 +44,11 @@ class BugFix(unittest.TestCase):
                     self.assertIn("onOrigin", stage["checks"])
                     self.assertIn("redFirst", stage["checks"])
 
+    def test_bug_fix_reads_test_projects_from_the_repository(self):
+        for name in ("implement", "fix"):
+            with self.subTest(stage=name):
+                self.assertEqual(bug_fix()["stages"][name]["tests"], "fromRepository")
+
 
 class EachRuleRefuses(unittest.TestCase):
     def refused(self, change, expected):
