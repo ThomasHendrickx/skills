@@ -33,6 +33,8 @@ This installs into `.agents/skills/` (read by Codex) and links each skill into `
 - `writing-for-agents`: skills, CLAUDE.md and other docs agents read.
 - `scenario-video`: an Aeolus use-case or explainer script to a video (the same story without and with Aeolus, or how an Aeolus part works and when to use it), as a page and an MP4; the look, engine and score ship with it.
 
+Example Aeolus guard rule sets are in `guard-rules/`.
+
 ## Squadron templates
 
 Ship templates for Aeolus squadrons, in `squadrons/templates/`. squadrons reads them straight from this repository (configure it as a template repository with `path: squadrons`), so every fleet shares one copy and nothing is installed. A template's version is its tag `<name>@<n>` (`designer@1`), beside the skills' semver tags.
