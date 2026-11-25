@@ -1,0 +1,27 @@
+name: guard-rules
+on:
+  pull_request:
+    paths:
+      - guard-rules/**
+      - .github/workflows/guard-rules.yml
+  push:
+    branches: [main]
+    paths:
+      - guard-rules/**
+      - .github/workflows/guard-rules.yml
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26'
+          cache: npm
+          cache-dependency-path: guard-rules/package-lock.json
+      - run: npm ci
+        working-directory: guard-rules
+      - run: npm test
+        working-directory: guard-rules

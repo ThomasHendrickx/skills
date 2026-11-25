@@ -1,0 +1,9 @@
+{
+  "private": true,
+  "type": "module",
+  "scripts": { "test": "node --test validate.test.js" },
+  "devDependencies": {
+    "@aeolus-fleet/common": "0.47.0",
+    "yaml": "2.8.1"
+  }
+}
