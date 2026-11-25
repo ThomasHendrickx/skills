@@ -269,6 +269,13 @@ class VersionTwo(unittest.TestCase):
                     self.assertEqual(errors(self.doc), [])
                     rules.pop(0)
 
+    def test_shared_top_level_fields_are_available_for_every_result(self):
+        with (HERE / "result-fields.json").open() as f:
+            fields = json.load(f)
+        for kind, names in fields.items():
+            with self.subTest(kind=kind):
+                self.assertTrue({"task", "issue", "status", "pr", "runId"} <= set(names))
+
     def test_gate_answers_must_name_stages_or_use_ordered_rules(self):
         for answer in ("missing", "finish", [{"if": "qaTests", "go": "architect"}]):
             with self.subTest(answer=answer):
@@ -317,6 +324,11 @@ class VersionTwo(unittest.TestCase):
         self.assertEqual(errors(self.doc), [])
         self.doc["stuck"]["review-needs-human"].remove({"fix": "fix"})
         self.refused("fix: not reachable from analyse")
+
+    def test_runner_stuck_decision_makes_stage_reachable(self):
+        del self.doc["stages"]["analyse"]["on"]["analyzed"]
+        self.doc["stuck"]["rounds"] = [{"redesign": "architect"}, "stop"]
+        self.assertNotIn("architect: not reachable from analyse", errors(self.doc))
 
     def test_continues_and_qa_test_changes_accept_non_negative_integers(self):
         for key in ("continues", "qaTestChanges"):
