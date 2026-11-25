@@ -38,8 +38,15 @@ A rule's `go` is one of these targets:
 
 A condition is either a test on a field of the stage's result, or a state condition.
 
-- **A result field test** names the field and the value it must have, as in `if: {size: small}`, `if: {risk: high}` or `if: {cause: setup}`. The validator checks that the field belongs to the stage's result kind. `validate.py` reads each result kind's fields from its own small list in this repository, and the runner's schema tests check that list against the runner's schemas, so the two cannot drift apart.
-- **A state condition** is a name from a short fixed list that the validator and the router both hold. These conditions cover budgets, loops and approvals: a run's state, not a result. One of them is `qaTests`, which holds while the review is a review of QA's test commits.
+- **A result field test** names the field and the value it must have, as in `if: {size: small}`, `if: {risk: high}` or `if: {cause: setup}`. The validator checks that the field belongs to the stage's result kind. In a gate answer, the field belongs to the result of the stage that asked.
+- **A state condition** is written as a scalar, for example `if: qaTests`. The validator and router use these four names from aw:
+
+| Condition | Holds when |
+| --- | --- |
+| `qaTests` | Review is checking QA's test commits. |
+| `qaLoop` | QA finds a defect that has already come back through the fix loop. |
+| `reviewLoop` | Review finds a blocker that has already come back through the fix loop. |
+| `afterQaFail` | The fix follows a QA failure. |
 
 ### Decision words
 
@@ -103,7 +110,9 @@ stuck:
     - stop
 ```
 
-Five decisions are fixed and name no stage: `stop`, `ask`, `one-more-round` (one more round of the stage's budget), `split` (the change is split) and `approve`. `approve` overrules a stuck review: the blocking items left over are filed as issues, the pull request names them, and the run goes on. `stop` is allowed in every situation.
+Write the five fixed decisions as scalars. They are `stop`, `ask`, `one-more-round` (one more round of the stage's budget), `split` (the change is split) and `approve`. `stop` is allowed in every situation.
+
+`approve` overrules a stuck review. The blocking items left over are filed as issues, the pull request names them, and the run takes the review stage's existing `on.approve` route. In the feature workflow that route goes to QA for a code review and to `finish` for a review of QA's test commits, selected by `if: qaTests`.
 
 The situations are aw's 17, each belonging to its stage, with the decisions aw allows:
 
@@ -121,6 +130,8 @@ The situations are aw's 17, each belonging to its stage, with the decisions aw a
 
 The runner's own situations stay beside them: `rounds` (a budget used up), `loop` (a fix that changes nothing, or a blocking finding that comes back) and `silent` (a stage past its deadline after its retries).
 
+Declare `qa-setup` under `stuck` for the owner-only setup card. The feature workflow gives it the fixed decisions `one-more-round` and `stop`.
+
 ### Budgets
 
 Loops are budgeted by `rounds` on each stage, as in version 1, and the `one-more-round` decision adds one round. The feature file takes aw's numbers:
@@ -134,6 +145,8 @@ Loops are budgeted by `rounds` on each stage, as in version 1, and the `one-more
 
 A stage that needs more time answers `continue`. The runner then crews the same stage again in a fresh session, starting from the last pushed commit, within `continues`. QA's `incomplete` counts as its continue.
 
+When present, `limits.continues` and `limits.qaTestChanges` are non-negative integers.
+
 The change size limit is 400 lines (`limits.changeLines`), the same as bug-fix and aw. A change over the limit is stuck, and the card offers `split`.
 
 ### The head check
@@ -146,6 +159,8 @@ The file names the stages whose result must still hold at the current head: the 
 2. Which stage the run goes back to when both the review's approval and QA's pass are stale.
 3. What is compared with the pushed head: which commit stands for the review's approval and which for QA's pass.
 4. Whether a stuck review that was overruled (`approve`) counts as the review's approval for the commit it overruled.
+
+The version 2 validator accepts workflows without a head-check key while its spelling is open.
 
 ## Stages and roles
 
@@ -168,15 +183,15 @@ The stages run in aw's order: analyse, architect (skipped for a small change), i
 - **QA's check.** QA's check is `testsOnly`: it fails a QA result that changed anything outside the profile's `testPaths`. `redFirst` does not apply to QA's commits, which change only tests. The bug-fix file does not change.
 - **QA's family.** QA runs in the implementor's family (`sameAs: implement`), so one review in the other family covers the code and QA's tests.
 - **Reviewing QA's tests.** The same review stage reviews QA's test commits. The `qaTests` state routes its decisions: `request-changes` goes back to QA within `qaTestChanges`, and past it, or on `needs-human`, the run is stuck on `review-qa-tests`.
-- **QA and the setup.** When QA cannot run because of the setup, it answers `needs-human` with `cause: setup`. The rule `if: {cause: setup}` routes it to a setup card: one card to the owner only, never to the Lead, naming the setup, the same way a hook refusal does. A setup fault is fixed at its source, and the owner's `one-more-round` runs QA again. Any other `needs-human` is stuck on `qa-needs-human`.
+- **QA and the setup.** When QA cannot run because of the setup, it answers `needs-human` with `cause: setup`. The rule `{if: {cause: setup}, go: stuck:qa-setup}` sends one card naming the setup directly to the owner. A setup fault is fixed at its source, and the owner's `one-more-round` runs QA again. Any other `needs-human` is stuck on `qa-needs-human`.
 
 ## Result kinds
 
-Version 2 adds two result kinds to the runner's schemas and one field to the analysis kind. A route reads these fields, so each field is in the list `validate.py` checks against, and the runner's schema tests keep that list equal to the schemas.
+Version 2 adds two result kinds to the runner's schemas and one field to the analysis kind. [`result-fields.json`](result-fields.json) maps each result kind to the full list of its top-level fields, including shared fields. `validate.py` uses the list to check route field tests. The runner's schema tests compare the lists with the schema properties for each kind.
 
 - `analysis` adds `size`: `small` or `standard`.
 - `design` is new. It carries `risk` and the changes.
-- `qa` is new. It carries the defect ids, the ref the tests are on, what failed, and the cause (`setup` or `product`).
+- `qa` is new. It carries `automation`, `defects`, `failed` and `cause` (`setup` or `product`), and uses the shared `commit` field for the tested ref.
 
 ## The flow of `workflows/feature.yaml`
 
