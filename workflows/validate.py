@@ -237,6 +237,14 @@ def v2_settings(doc, stages, found):
         for budget in ("continues", "qaTestChanges"):
             if budget in limits and (type(limits[budget]) is not int or limits[budget] < 0):
                 found.append(f"limits.{budget}: expected a non-negative integer")
+    if "headCheck" in doc:
+        head_check = doc["headCheck"]
+        if not isinstance(head_check, list):
+            found.append("headCheck: expected a list of stage names")
+        else:
+            for name in head_check:
+                if not isinstance(name, str) or name not in stages:
+                    found.append(f"headCheck: {name!r} is not a stage")
     for name, stage in stages.items():
         checks = stage.get("checks", [])
         if not isinstance(checks, list):
