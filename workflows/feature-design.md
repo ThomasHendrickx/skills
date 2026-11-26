@@ -39,7 +39,18 @@ A rule's `go` is one of these targets:
 A condition is either a test on a field of the stage's result, or a state condition.
 
 - **A result field test** names the field and the value it must have, as in `if: {size: small}`, `if: {risk: high}` or `if: {cause: setup}`. The validator checks that the field belongs to the stage's result kind. `validate.py` reads each result kind's fields from its own small list in this repository, and the runner's schema tests check that list against the runner's schemas, so the two cannot drift apart.
-- **A state condition** is a name from a short fixed list that the validator and the router both hold. These conditions cover budgets, loops and approvals: a run's state, not a result. One of them is `qaTests`, which holds while the review is a review of QA's test commits.
+- **A state condition** is a name from a short fixed list that the validator and the router both hold: a run's state, not a result. The list holds aw's four:
+
+| Condition | Stage | Holds when |
+| --- | --- | --- |
+| `qaTests` | review | This review round is a round of QA's test commits, not of the implementor's code. |
+| `reviewLoop` | review | A current blocking item repeats one from an earlier review round or is disputed by the implementor. Either case can lead to `review-stuck`. |
+| `qaLoop` | qa | QA's defects in this round repeat defects from an earlier QA round. |
+| `afterQaFail` | fix | The last verdict on the work, among the reviews, the gates and QA's fails, is QA's fail: the fix answers QA, not a review. |
+
+A loop condition that holds names the repeated or disputed items that triggered it, and the stuck situation it leads to shows them.
+
+Budgets are not conditions: the runner counts them, as [Budgets](#budgets) says.
 
 ### Decision words
 
@@ -136,13 +147,28 @@ Loops are budgeted by `rounds` on each stage, as in version 1, and the `one-more
 
 A stage that needs more time answers `continue`. The runner then crews the same stage again in a fresh session, starting from the last pushed commit, within `continues`. QA's `incomplete` counts as its continue.
 
+A used-up budget leads to a stuck situation of its stage, as in aw. The runner counts each budget, and when a route would take one more round or run than its budget allows, the run is stuck on that situation instead:
+
+| Budget | What counts | Used up |
+| --- | --- | --- |
+| `continues` | Implement's `continue`, in a row | `implement-continue` |
+| `continues` | Fix's `continue`, in a row | `fix-continue` |
+| `continues` | QA's `incomplete`, in a row | `qa-incomplete` |
+| `review.rounds` | `request-changes` outside a `qaTests` round, back to fix | `review-stuck` |
+| `qaTestChanges` | `request-changes` in a `qaTests` round, back to QA | `review-qa-tests` |
+| `qa.rounds` | QA's `fail`, back to fix | `qa-fails` |
+
+`continues` starts again from zero each time a stage starts from another stage; a stage that runs again on `continue` keeps it.
+
+A check that finds changes a stage must undo gives the stage its one retry (`resultRetries`), with a note naming what to undo. When the retry fails too, the run is stuck on the stage's `<stage>-protected` situation, and the stage's next run gets that note. QA's `testsOnly` is such a check: a QA result that changed files outside the test paths twice is stuck on `qa-protected`.
+
 The change size limit is 400 lines (`limits.changeLines`), the same as bug-fix and aw. A change over the limit is stuck, and the card offers `split`.
 
 ### The head check
 
 The file names the stages whose result must still hold at the current head: the review's approval and QA's pass. Before the run finishes, the runner checks that no commit landed after either of them. If one did, the run goes back to that stage. A late commit cannot go out unreviewed or untested.
 
-The file spells the check `headCheck: [review, qa]`. The runner compares the commit the reviewer approved and the ref QA tested, from the QA result, with the run branch's pushed head on origin. It returns to the first stale stage in the list, so review comes first when both are stale. Overruling a stuck review counts as approval of the commit it overruled. A later commit makes that approval stale.
+The file spells the check `headCheck: [review, qa]`, and `validate.py` checks that each name in it is a stage of the file. The runner compares the commit the reviewer approved and the ref QA tested, the QA result's `commit`, with the run branch's pushed head on origin. It returns to the first stale stage in the list, so review comes first when both are stale. Overruling a stuck review counts as approval of the commit it overruled. A later commit makes that approval stale.
 
 ## Stages and roles
 
@@ -164,7 +190,7 @@ The stages run in aw's order: analyse, architect (skipped for a small change), i
 - **QA's tests.** The repository names QA's test projects and the test paths in its profile: the profile has an optional `qaTests` list beside `tests` and `testPaths`. The QA stage says `tests: fromRepository` and runs the `qaTests` projects. No other stage runs them.
 - **QA's check.** QA's check is `testsOnly`: it fails a QA result that changed anything outside the profile's `testPaths`. `redFirst` does not apply to QA's commits, which change only tests. The bug-fix file does not change.
 - **QA's family.** QA runs in the implementor's family (`sameAs: implement`), so the reviewer in the other family covers both implementation and QA's test commits.
-- **Reviewing QA's tests.** The same review stage reviews QA's test commits, and every QA result with test commits goes to that review round first: no route takes QA's test commits past it. The `qaTests` state routes the review's decisions: `approve` lets QA's decision route the run as it would without test commits, `request-changes` goes back to QA within `qaTestChanges`, and past it, or on `needs-human`, the run is stuck on `review-qa-tests`.
+- **Reviewing QA's tests.** This feature design requires the runner to hold every QA result with test commits, including a fail, and run a separate round of the same review stage. Only after that round approves does the runner apply QA's routes. The runner handles this step automatically. In aw, QA test review begins after QA passes on the current head. On a fail, aw checks for a defect loop or an exhausted budget and otherwise routes to fix. The `qaTests` state routes the review's decisions: `approve` lets QA's decision route the run as it would without test commits, `request-changes` goes back to QA within `qaTestChanges`, and past it, or on `needs-human`, the run is stuck on `review-qa-tests`.
 - **QA and the setup.** When QA cannot run because of the setup, it answers `needs-human` with `cause: setup`. The rule `if: {cause: setup}` routes it to a setup card: one card to the owner only, never to the Lead, naming the setup, the same way a hook refusal does. A setup fault is fixed at its source, and the owner's `one-more-round` runs QA again. Any other `needs-human` is stuck on `qa-needs-human`.
 
 ### Risk routing
@@ -179,7 +205,7 @@ Version 2 adds two result kinds to the runner's schemas and one field to the ana
 
 - `analysis` adds `size`: `small` or `standard`.
 - `design` is new. It carries `risk` and the changes.
-- `qa` is new. It carries the defect ids, the ref the tests are on, what failed, and the cause (`setup` or `product`).
+- `qa` is new. It carries the defect ids, the ref the tests are on, what failed, and the cause (`setup` or `product`). The ref QA tested is the common `commit`: the run branch head when QA finishes, its own test commit when it made one, as aw's QA result names it. A pass or a fail without it fails its result check. `automation` names the branch and commit of tests kept in another repository, or `none`.
 
 ## The flow of `workflows/feature.yaml`
 
@@ -258,16 +284,17 @@ flowchart TD
   qa -- "qa: incomplete, continues used up" --> sQI[/stuck: qa-incomplete/]
   qa -- "qa: needs-human, cause setup" --> cardSetup[["card to the owner only: the setup"]]
   qa -- "qa: needs-human" --> sQH[/stuck: qa-needs-human/]
+  qa -- "runner: testsOnly fails after its retry" --> sQP[/stuck: qa-protected/]
   cardSetup -. "owner: one-more-round" .-> qa
   sQF -. "Lead, else owner: fix" .-> fix
   sQF -. "Lead, else owner: redesign" .-> architect
-  sQI & sQH -. "Lead, else owner: qa" .-> qa
+  sQI & sQH & sQP -. "Lead, else owner: qa" .-> qa
 
   head == "runner: yes" ==> finish([finish: pull request ready])
   head -- "runner: commit after the review's approval" --> review
   head -- "runner: commit after QA's pass" --> qa
 
-  sNI & sHR & sDN & sIC & sIB & sRS & sRH & sFC & sFB & sFR & sRQ & sQF & sQI & sQH -. "Lead, else owner: stop" .-> stopped([stop])
+  sNI & sHR & sDN & sIC & sIB & sRS & sRH & sFC & sFB & sFR & sRQ & sQF & sQI & sQH & sQP -. "Lead, else owner: stop" .-> stopped([stop])
 ```
 
 What the edges mean:
@@ -278,7 +305,7 @@ What the edges mean:
 4. **High risk.** As [Risk routing](#risk-routing) says.
 5. **Review loop.** `request-changes` goes to fix and back to review, within the review's `rounds`. Once the rounds are used up, or a blocking item comes back, the run is stuck on `review-stuck`. A stuck review can be overruled with `approve`: the leftover items are filed as issues, the pull request names them, and the run goes on.
 6. **QA loop.** `fail` goes to fix, then review, then QA again, within QA's `rounds`. Every QA result with test commits, a pass or a fail, goes to its own review round first, where the `qaTests` state routes it: `request-changes` goes back to QA within `qaTestChanges`, and the approval lets QA's decision go on, a pass to the head check and a fail as a fail without test commits would. No route takes QA's test commits to the head check or to fix unreviewed. A QA result that changed anything outside the test paths fails its `testsOnly` check. Defects that come back, or rounds used up, make the run stuck on `qa-fails`.
-7. **More time.** `continue` crews the same stage again, fresh, from the last pushed commit, within the `continues` budget. QA's `incomplete` counts as its continue. Past the budget the run is stuck.
+7. **More time.** `continue` crews the same stage again, fresh, from the last pushed commit, within the `continues` budget. QA's `incomplete` counts as its continue. Past the budget the run is stuck on `implement-continue`, `fix-continue` or `qa-incomplete`.
 8. **Setup.** QA's `needs-human` with `cause: setup` is one card to the owner only, naming the setup. The owner's `one-more-round` runs QA again.
 9. **Head check.** The run goes back to the first stale stage in `headCheck`. Review comes first when both results are stale. See [The head check](#the-head-check) for the refs it compares.
 10. **Stuck exits.** Each stuck situation shows every decision its row in the situations table allows, and `stop`. The Lead decides first; what the Lead cannot settle goes to the owner as a card, who picks from the same decisions.

@@ -522,6 +522,18 @@ class VersionTwo(unittest.TestCase):
         qa["tests"] = "fromProfile"
         self.refused("qa.tests")
 
+    def test_head_check_names_stages_of_the_file(self):
+        self.doc["headCheck"] = ["review", "qa"]
+        self.assertEqual(errors(self.doc), [])
+        for value in (["reveiw"], ["review", "finish"], [None]):
+            with self.subTest(value=value):
+                self.doc["headCheck"] = value
+                self.refused("headCheck: ")
+        for value in ("review", {"review": True}, None):
+            with self.subTest(value=value):
+                self.doc["headCheck"] = value
+                self.refused("headCheck: expected a list of stage names")
+
 
 if __name__ == "__main__":
     unittest.main()
