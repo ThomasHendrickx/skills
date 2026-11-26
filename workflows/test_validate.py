@@ -583,7 +583,8 @@ class VersionTwo(unittest.TestCase):
         with (HERE / "result-fields.json").open() as f:
             fields = json.load(f)
         self.assertEqual(set(fields), {
-            "analysis", "code", "design", "review", "qa", "lead", "resolution", "resolution-review",
+            "analysis", "code", "design", "review", "qa", "lead", "plan",
+            "resolution", "resolution-review",
         })
         for stage in self.doc["stages"].values():
             for field in fields[stage["result"]]:
