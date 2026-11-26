@@ -1,0 +1,62 @@
+# Resolve a pull request's merge of the default branch, then review the resolution alone.
+# A runner starts it when merging the default branch into a PR's branch conflicts, or when
+# CI goes red after a clean merge.
+#
+# resolve (implementor role): merges the named default branch commit into the PR's branch,
+# never a rebase, resolves the conflicting files or fixes the failing checks, runs the
+# project's tests, pushes one merge commit (and, for a red CI, its fix commits) and reports
+# them. Its input carries the PR's issue and description, so a resolution keeps what both
+# sides meant. The runner checks that the merge commit's second parent is the named commit.
+#
+# resolution-review (reviewer role, the other family than the resolver): reads only
+# `git show --remerge-diff <merge commit>`, or the fix commits alone for a red CI, and
+# approves or asks for changes within its rounds.
+#
+# The runner counts the budgets: resolve's retries and resolution-review's rounds, used up,
+# lead to merge-conflict, as resolve's blocked does.
+workflow: merge-resolve
+type: merge
+version: 2
+limits:
+  runRetries: 1
+  resultRetries: 1
+  leadTurns: 2
+  changeLines: 400
+stages:
+  resolve:
+    role: implementor
+    tier: large
+    family: any
+    deadlineMinutes: 45
+    writesCode: true
+    # mergeCommit: the default branch commit to merge; conflicts: the conflicting files;
+    # failingChecks: the failing checks with their logs; results.resolution-review: the
+    # changes a review asked for.
+    input: [mergeCommit, conflicts, failingChecks, issue, prDescription, results.resolution-review]
+    result: resolution
+    checks: [onOrigin, noRewrite, tests, headUnmoved]
+    tests: fromRepository
+    on:
+      done: [{go: resolution-review}]
+      blocked: [{go: stuck:merge-conflict}]
+  resolution-review:
+    role: reviewer
+    tier: large
+    family: {otherThan: resolve}
+    deadlineMinutes: 20
+    writesCode: false
+    # remergeDiff: `git show --remerge-diff <merge commit>`; fixCommits: the fix commits
+    # alone, for a red CI.
+    input: [issue, prDescription, results.resolve, remergeDiff, fixCommits]
+    result: resolution-review
+    checks: [onOrigin]
+    rounds: 3
+    on:
+      approve: [{go: finish}]
+      request-changes: [{go: resolve}]
+stuck:
+  merge-conflict: [{resolve: resolve}, stop]
+  rounds: [one-more-round, ask, stop]
+  loop: [one-more-round, ask, stop]
+  silent: [one-more-round, ask, stop]
+  moved: [take-head, stop]

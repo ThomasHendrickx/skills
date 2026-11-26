@@ -46,8 +46,9 @@ Ship templates for Aeolus squadrons, in `squadrons/templates/`. squadrons reads 
 Stage-by-stage runs for an agent workflow runner, in `workflows/`, read at a release tag like the skills. Each file names its stages, the role, tier, model family, deadline, input, result schema, checks and tests of each, where each decision goes, and the stuck situations with the decisions each allows. `python workflows/validate.py workflows/*.yaml` checks a file against the format's rules; CI runs it with its tests.
 
 - `bug-fix`: analyse the issue, implement the fix test first, review it in the other model family, fix what the review blocks.
+- `merge-resolve`: resolve a pull request's merge of the default branch (a conflict, or a red CI after a clean merge) with one merge commit, never a rebase, then review the resolution alone, from `git show --remerge-diff`, in the other model family. Its stuck situation `merge-conflict` allows `resolve` again or `stop`; its results are the kinds `resolution` and `resolution-review`.
 
-Each file declares a top-level `type`, a short name for its kind of work: `fix` for `bug-fix` and `feat` for `feature`. A runner puts it in each run's id, `run_<repository key>_<issue>_<type>_<attempt>`. A type is 1 to 8 lowercase letters; format version 2 requires it, and the validator checks it in version 1 when a file carries one.
+Each file declares a top-level `type`, a short name for its kind of work: `fix` for `bug-fix`, `feat` for `feature` and `merge` for `merge-resolve`. A runner puts it in each run's id, `run_<repository key>_<issue>_<type>_<attempt>`. A type is 1 to 8 lowercase letters; format version 2 requires it, and the validator checks it in version 1 when a file carries one.
 
 The feature workflow and format version 2 are designed in `workflows/feature-design.md`.
 
