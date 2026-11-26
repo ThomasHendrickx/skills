@@ -156,6 +156,54 @@ class EachRuleRefuses(unittest.TestCase):
                      "analyse.family: 'gemini'")
 
 
+class StageHarnessSettings(unittest.TestCase):
+    def setUp(self):
+        self.doc = load(HERE / "feature.yaml")
+        self.stage = self.doc["stages"]["analyse"]
+
+    def refused(self, field):
+        found = errors(self.doc)
+        self.assertTrue(any(error.startswith(f"analyse.{field}:") for error in found), found)
+
+    def test_stage_accepts_each_harness_and_the_new_keys(self):
+        self.stage.update(model="gpt-5", options={}, mcpServers=["search", "repo-index"])
+        for harness in ("claude-code", "codex", "copilot", "antigravity", "local"):
+            with self.subTest(harness=harness):
+                self.stage["harness"] = harness
+                self.assertEqual(errors(self.doc), [])
+
+    def test_unknown_harness_is_refused(self):
+        for harness in ("terminal", None, ["codex"]):
+            with self.subTest(harness=harness):
+                self.stage["harness"] = harness
+                self.refused("harness")
+
+    def test_mcp_servers_are_a_list_of_names(self):
+        for servers in (
+            "search", None, {"search": {}}, [42], [""], ["two words"],
+            ["https://example.com/mcp"], ["./server"], [{"command": "server"}],
+        ):
+            with self.subTest(servers=servers):
+                self.stage["mcpServers"] = servers
+                self.refused("mcpServers")
+
+    def test_copilot_needs_a_model(self):
+        self.stage["harness"] = "copilot"
+        self.refused("model")
+
+    def test_stage_model_must_match_a_fixed_family(self):
+        for family, model in (("claude", "gpt-5"), ("gpt", "claude-sonnet-4-6")):
+            with self.subTest(family=family, model=model):
+                self.stage.update(family=family, model=model)
+                self.refused("model")
+
+    def test_stage_model_is_a_nonempty_string(self):
+        for model in (None, 42, ["gpt-5"], {}, "", "  "):
+            with self.subTest(model=model):
+                self.stage["model"] = model
+                self.refused("model")
+
+
 V2_SITUATIONS = (
     "rounds", "loop", "silent", "needs-info", "high-risk", "design-needs-human",
     "implement-blocked", "implement-continue", "implement-protected", "fix-blocked",
