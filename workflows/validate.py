@@ -1,8 +1,10 @@
 """Check workflow files against the rules of the workflow file format.
 
-Usage: python validate.py <file.yaml>...  Prints each error; exits 1 when any file fails.
+Usage: python validate.py [--profile <path>] <file.yaml>...
+Prints each error and exits 1 when any workflow fails validation.
 """
 
+import argparse
 import json
 import re
 import sys
@@ -11,7 +13,14 @@ from pathlib import Path
 import yaml
 
 DECISIONS = {"replan", "one-more-round", "split", "stop", "ask"}
-FAMILIES = {"any", "claude", "gpt"}
+OTHER_MODEL_FAMILY = {"claude": "gpt", "gpt": "claude"}
+FAMILIES = {"any", *OTHER_MODEL_FAMILY}
+HARNESSES = {"claude-code", "codex", "copilot", "antigravity", "local"}
+STAGE_KEYS = {
+    "role", "tier", "family", "deadlineMinutes", "writesCode", "input", "result",
+    "checks", "tests", "on", "rounds", "skills", "harness", "model", "options", "mcpServers",
+}
+MCP_SERVER_NAME = re.compile(r"[A-Za-z0-9_-]+")
 END = "finish"
 STUCK = "stuck:"
 ASK = "ask:"
@@ -254,7 +263,82 @@ def v2_settings(doc, stages, found):
                 found.append(f"{name}.tests: expected fromRepository or a list of test project names")
 
 
-def errors(doc):
+def model_family(model):
+    if isinstance(model, str):
+        prefix, dash, _ = model.partition("-")
+        if dash and prefix in OTHER_MODEL_FAMILY:
+            return prefix
+    return None
+
+
+def stage_model(stage, default_model):
+    fallback = default_model if stage.get("harness") == "copilot" else None
+    return stage.get("model", fallback)
+
+
+def required_model_family(name, stages, default_model):
+    """Resolve a family constraint as far as the workflow and profile allow."""
+    family = stages[name].get("family")
+    seen = {name}
+    opposite = False
+    while isinstance(family, dict) and set(family) in ({"sameAs"}, {"otherThan"}):
+        relation, target = next(iter(family.items()))
+        if not isinstance(target, str) or target not in stages or target in seen:
+            return None
+        seen.add(target)
+        # Each otherThan reverses the required family along the chain.
+        opposite ^= relation == "otherThan"
+        stage = stages[target]
+        family = model_family(stage_model(stage, default_model)) or stage.get("family")
+
+    if isinstance(family, str) and family in OTHER_MODEL_FAMILY:
+        return OTHER_MODEL_FAMILY[family] if opposite else family
+    return None
+
+
+def stage_settings(name, stages, default_model, found):
+    stage = stages[name]
+    for key in sorted(stage.keys() - STAGE_KEYS, key=repr):
+        found.append(f"{name}.{key}: unknown stage key")
+
+    harness = stage.get("harness")
+    if "harness" in stage:
+        if not isinstance(harness, str) or harness not in HARNESSES:
+            found.append(f"{name}.harness: expected one of {sorted(HARNESSES)}")
+
+    if "options" in stage:
+        options = stage["options"]
+        if not isinstance(options, dict) or any(not isinstance(key, str) for key in options):
+            found.append(f"{name}.options: expected a mapping with string keys")
+
+    if "mcpServers" in stage:
+        servers = stage["mcpServers"]
+        if not isinstance(servers, list) or any(
+            not isinstance(server, str) or not MCP_SERVER_NAME.fullmatch(server) for server in servers
+        ):
+            found.append(f"{name}.mcpServers: expected a list of names matching {MCP_SERVER_NAME.pattern}")
+
+    if "model" not in stage and harness != "copilot":
+        return
+    model = stage_model(stage, default_model)
+    where = f"{name}.model"
+    source = "model" if "model" in stage else "profile models.default"
+    if not isinstance(model, str) or not model.strip():
+        if "model" in stage:
+            found.append(f"{where}: expected a non-empty model ID")
+        else:
+            found.append(f"{where}: Copilot requires a model or profile models.default")
+        return
+
+    family = model_family(model)
+    required = required_model_family(name, stages, default_model)
+    if required is not None and family != required:
+        found.append(f"{where}: {source} must belong to the {required} family")
+    elif family is None and stage.get("family") != "any":
+        found.append(f"{where}: {source} without a known family requires family: any")
+
+
+def errors(doc, profile=None):
     version = doc.get("version") if isinstance(doc, dict) else None
     if type(version) is not int or version not in (1, 2):
         return [f"version: expected 1 or 2, got {version!r}"]
@@ -281,7 +365,10 @@ def errors(doc):
         routes = v2_routes(doc, stages, stuck, found)
         v2_settings(doc, stages, found)
 
+    models = profile.get("models") if isinstance(profile, dict) else None
+    default_model = models.get("default") if isinstance(models, dict) else None
     for name, stage in stages.items():
+        stage_settings(name, stages, default_model, found)
         family = stage.get("family")
         if isinstance(family, dict) and set(family) == {"otherThan"}:
             other = family["otherThan"]
@@ -334,10 +421,10 @@ def errors(doc):
     return found
 
 
-def main(paths):
+def main(paths, profile=None):
     failed = False
     for path in paths:
-        found = errors(load(path))
+        found = errors(load(path), profile)
         for error in found:
             print(f"{path}: {error}")
         failed = failed or bool(found)
@@ -347,4 +434,14 @@ def main(paths):
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv[1:]))
+    parser = argparse.ArgumentParser(description="Validate workflow files.")
+    parser.add_argument("--profile", help="repository workflow profile supplying models.default")
+    parser.add_argument("paths", nargs="*", metavar="file.yaml")
+    args = parser.parse_args()
+    profile = None
+    if args.profile is not None:
+        try:
+            profile = load(args.profile)
+        except (OSError, UnicodeError, yaml.YAMLError):
+            parser.error(f"could not read profile {args.profile!r} as YAML")
+    sys.exit(main(args.paths, profile))
