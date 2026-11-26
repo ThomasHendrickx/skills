@@ -40,7 +40,7 @@ V2_DECISION_STAGES = {
     "restart-analysis": "analyse", "design": "architect", "redesign": "architect",
     "implement": "implement", "fix": "fix", "qa": "qa", "resolve": "resolve",
 }
-V2_STATE_CONDITIONS = {"qaTests", "qaLoop", "reviewLoop", "afterQaFail"}
+V2_STATE_CONDITIONS = {"qaTests", "qaLoop", "reviewLoop", "afterQaFail", "storyTask"}
 V2_CHECKS = {"onOrigin", "redFirst", "noRewrite", "size", "tests", "testsOnly", "headUnmoved"}
 # moved: the run branch's head moved under the run. Its decisions are its own.
 MOVED = "moved"
