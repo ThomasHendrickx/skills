@@ -30,7 +30,7 @@ A rule's `go` is one of these targets:
 | --- | --- |
 | `<stage>` | Runs that stage. |
 | `finish` | Runs the head check, then finishes the run. |
-| `stuck:<situation>` | Puts the run in a stuck situation. The Lead decides first, and the owner gets a card for what the Lead cannot settle. |
+| `stuck:<situation>` | Puts the run in a stuck situation. The Lead decides first, and the owner gets a card for what the Lead cannot settle. `qa-setup` is owner-only and skips the Lead. |
 | `ask:<gate>` | An approval gate: a card to the owner, never to the Lead. Skipped when the gate is off for the run. |
 | `stop:<reason>` | Stops the run with that reason, which goes on the issue. |
 
@@ -118,7 +118,7 @@ stuck:
 
 Five decisions are fixed and name no stage: `stop`, `ask`, `one-more-round` (one more round of the stage's budget), `split` (the change is split) and `approve`. `approve` overrules a stuck review: the blocking items left over are filed as issues, the pull request names them, and the run goes on. `stop` is allowed in every situation.
 
-The situations are aw's 17, each belonging to its stage, with the decisions aw allows:
+The situations are aw's 17 and an 18th, `qa-setup`, each belonging to its stage, with the decisions it allows:
 
 | Stage | Situation | Decisions |
 | --- | --- | --- |
@@ -131,6 +131,11 @@ The situations are aw's 17, each belonging to its stage, with the decisions aw a
 | review | `review-needs-human` | `fix`, `approve`, `redesign` |
 | qa | `qa-fails` | `fix`, `redesign` |
 | qa | `qa-needs-human`, `qa-incomplete`, `qa-protected` | `qa` |
+| qa | `qa-setup` (owner-only) | `one-more-round` |
+
+`qa-setup` is the one owner-only situation. It skips the Lead and goes to the owner as one card, naming the setup, with `one-more-round` and `stop`. Every other situation goes to the Lead first.
+
+`implement-protected` and `fix-protected` stay listed, and no route reaches them yet. They are reached once a check that asks the stage to undo changes runs on implement or fix, and none does yet.
 
 The runner's own situations stay beside them: `rounds` (a budget used up), `loop` (a fix that changes nothing, or a blocking finding that comes back) and `silent` (a stage past its deadline after its retries).
 
@@ -160,7 +165,7 @@ A used-up budget leads to a stuck situation of its stage, as in aw. The runner c
 
 `continues` starts again from zero each time a stage starts from another stage; a stage that runs again on `continue` keeps it.
 
-A check that finds changes a stage must undo gives the stage its one retry (`resultRetries`), with a note naming what to undo. When the retry fails too, the run is stuck on the stage's `<stage>-protected` situation, and the stage's next run gets that note. QA's `testsOnly` is such a check: a QA result that changed files outside the test paths twice is stuck on `qa-protected`.
+A check that finds changes a stage must undo gives the stage its one retry (`resultRetries`), with a note naming what to undo. When the retry fails too, the run is stuck on the stage's `<stage>-protected` situation, and the stage's next run gets that note. QA's `testsOnly` is such a check: a QA result that changed files outside the test paths twice is stuck on `qa-protected`. No check on implement or fix asks the stage to undo changes yet, so `implement-protected` and `fix-protected` stay unreached until one does.
 
 The change size limit is 400 lines (`limits.changeLines`), the same as bug-fix and aw. A change over the limit is stuck, and the card offers `split`.
 
@@ -191,7 +196,7 @@ The stages run in aw's order: analyse, architect (skipped for a small change), i
 - **QA's check.** QA's check is `testsOnly`: it fails a QA result that changed anything outside the profile's `testPaths`. `redFirst` does not apply to QA's commits, which change only tests. The bug-fix file does not change.
 - **QA's family.** QA runs in the implementor's family (`sameAs: implement`), so the reviewer in the other family covers both implementation and QA's test commits.
 - **Reviewing QA's tests.** This feature design requires the runner to hold every QA result with test commits, including a fail, and run a separate round of the same review stage. Only after that round approves does the runner apply QA's routes. The runner handles this step automatically. In aw, QA test review begins after QA passes on the current head. On a fail, aw checks for a defect loop or an exhausted budget and otherwise routes to fix. The `qaTests` state routes the review's decisions: `approve` lets QA's decision route the run as it would without test commits, `request-changes` goes back to QA within `qaTestChanges`, and past it, or on `needs-human`, the run is stuck on `review-qa-tests`.
-- **QA and the setup.** When QA cannot run because of the setup, it answers `needs-human` with `cause: setup`. The rule `if: {cause: setup}` routes it to a setup card: one card to the owner only, never to the Lead, naming the setup, the same way a hook refusal does. A setup fault is fixed at its source, and the owner's `one-more-round` runs QA again. Any other `needs-human` is stuck on `qa-needs-human`.
+- **QA and the setup.** When QA cannot run because of the setup, it answers `needs-human` with `cause: setup`. The rule `if: {cause: setup}` routes it to `stuck:qa-setup`, the owner-only situation: it skips the Lead and goes to the owner as one card, naming the setup, the same way a hook refusal does, with `one-more-round` and `stop`. A setup fault is fixed at its source, and the owner's `one-more-round` runs QA again. Any other `needs-human` is stuck on `qa-needs-human`.
 
 ### Risk routing
 
@@ -209,7 +214,7 @@ Version 2 adds two result kinds to the runner's schemas and one field to the ana
 
 ## The flow of `workflows/feature.yaml`
 
-Every edge names who takes it: a stage's role by its decision (`analyst:`, `architect:`, `implementor:`, `reviewer:`, `qa:`), the `runner:` for an automatic route, the `owner:` for a card, and `Lead, else owner:` for a stuck situation. A stuck situation goes to the Lead first, then to the owner as a card if the Lead cannot settle it; either one's decision sends the run to the stage that the decision names under `stuck`. The happy path is drawn in bold (thick edges). Every other edge is an unhappy path: a gate, a stuck situation, a loop or a stop. The review's routes are ordered, the first that holds wins, and each names whether the `qaTests` state holds.
+Every edge names who takes it: a stage's role by its decision (`analyst:`, `architect:`, `implementor:`, `reviewer:`, `qa:`), the `runner:` for an automatic route, the `owner:` for a card, and `Lead, else owner:` for a stuck situation. A stuck situation other than `qa-setup` goes to the Lead first, then to the owner as a card if the Lead cannot settle it; either one's decision sends the run to the stage that the decision names under `stuck`. The happy path is drawn in bold (thick edges). Every other edge is an unhappy path: a gate, a stuck situation, a loop or a stop. The review's routes are ordered, the first that holds wins, and each names whether the `qaTests` state holds.
 
 ```mermaid
 flowchart TD
@@ -282,10 +287,11 @@ flowchart TD
   qf -- "runner: no, defects come back or rounds used up" --> sQF[/stuck: qa-fails/]
   qa -- "qa: incomplete, within continues" --> qa
   qa -- "qa: incomplete, continues used up" --> sQI[/stuck: qa-incomplete/]
-  qa -- "qa: needs-human, cause setup" --> cardSetup[["card to the owner only: the setup"]]
+  qa -- "qa: needs-human, cause setup" --> sQS[/"stuck: qa-setup, owner only"/]
   qa -- "qa: needs-human" --> sQH[/stuck: qa-needs-human/]
   qa -- "runner: testsOnly fails after its retry" --> sQP[/stuck: qa-protected/]
-  cardSetup -. "owner: one-more-round" .-> qa
+  sQS -. "owner: one-more-round" .-> qa
+  sQS -. "owner: stop" .-> stopped
   sQF -. "Lead, else owner: fix" .-> fix
   sQF -. "Lead, else owner: redesign" .-> architect
   sQI & sQH & sQP -. "Lead, else owner: qa" .-> qa
@@ -306,7 +312,7 @@ What the edges mean:
 5. **Review loop.** `request-changes` goes to fix and back to review, within the review's `rounds`. Once the rounds are used up, or a blocking item comes back, the run is stuck on `review-stuck`. A stuck review can be overruled with `approve`: the leftover items are filed as issues, the pull request names them, and the run goes on.
 6. **QA loop.** `fail` goes to fix, then review, then QA again, within QA's `rounds`. Every QA result with test commits, a pass or a fail, goes to its own review round first, where the `qaTests` state routes it: `request-changes` goes back to QA within `qaTestChanges`, and the approval lets QA's decision go on, a pass to the head check and a fail as a fail without test commits would. No route takes QA's test commits to the head check or to fix unreviewed. A QA result that changed anything outside the test paths fails its `testsOnly` check. Defects that come back, or rounds used up, make the run stuck on `qa-fails`.
 7. **More time.** `continue` crews the same stage again, fresh, from the last pushed commit, within the `continues` budget. QA's `incomplete` counts as its continue. Past the budget the run is stuck on `implement-continue`, `fix-continue` or `qa-incomplete`.
-8. **Setup.** QA's `needs-human` with `cause: setup` is one card to the owner only, naming the setup. The owner's `one-more-round` runs QA again.
+8. **Setup.** QA's `needs-human` with `cause: setup` is stuck on `qa-setup`, the owner-only situation: it skips the Lead and is one card to the owner, naming the setup, with `one-more-round` and `stop`. The owner's `one-more-round` runs QA again.
 9. **Head check.** The run goes back to the first stale stage in `headCheck`. Review comes first when both results are stale. See [The head check](#the-head-check) for the refs it compares.
-10. **Stuck exits.** Each stuck situation shows every decision its row in the situations table allows, and `stop`. The Lead decides first; what the Lead cannot settle goes to the owner as a card, who picks from the same decisions.
+10. **Stuck exits.** Each stuck situation shows every decision its row in the situations table allows, and `stop`. The Lead decides first; what the Lead cannot settle goes to the owner as a card, who picks from the same decisions. `qa-setup` alone skips the Lead. `implement-protected` and `fix-protected` have no edge: nothing reaches them until a check that asks implement or fix to undo changes runs there.
 11. **Stops.** `out-of-scope` stops the run with its reason. `stop` is a decision available in every stuck situation.
