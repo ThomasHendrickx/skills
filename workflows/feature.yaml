@@ -69,7 +69,7 @@ stages:
     rounds: 3
     on:
       approve:
-        - {if: qaTests, go: finish}
+        # The runner resumes the saved QA verdict when its test commits are approved.
         - {go: qa}
       request-changes:
         - {if: qaTests, go: qa}
