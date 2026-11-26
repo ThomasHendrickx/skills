@@ -23,7 +23,10 @@
     "task", "issue", "status", "pr", "runId", "stage", "step", "decision", "summary", "commit", "files", "tests", "findings", "criteria", "note",
     "situation", "pick", "why"
   ],
-  "plan": ["decision", "summary", "criteria", "tasks", "order", "questions"],
+  "plan": [
+    "task", "issue", "status", "pr", "runId",
+    "decision", "summary", "criteria", "tasks", "order", "questions"
+  ],
   "resolution": [
     "task", "issue", "status", "pr", "runId", "stage", "step", "decision", "summary", "commit", "files", "tests", "findings", "criteria", "note",
     "merged", "mergeCommit", "conflicts", "fixCommits"
