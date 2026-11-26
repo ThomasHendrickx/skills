@@ -78,3 +78,4 @@ stuck:
   rounds: [one-more-round, split, ask, stop]
   loop: [replan, ask, stop]
   silent: [one-more-round, ask, stop]
+  moved: [review, take-head, stop]
