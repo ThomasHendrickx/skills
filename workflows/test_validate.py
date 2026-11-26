@@ -598,6 +598,9 @@ class VersionTwo(unittest.TestCase):
         with (HERE / "result-fields.json").open() as f:
             fields = json.load(f)
         for kind, names in fields.items():
+            # The Planner has a standalone result contract checked by PlanResult.
+            if kind == "plan":
+                continue
             with self.subTest(kind=kind):
                 self.assertTrue({"task", "issue", "status", "pr", "runId"} <= set(names))
 
