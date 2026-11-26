@@ -49,6 +49,19 @@ Stage-by-stage runs for an agent workflow runner, in `workflows/`, read at a rel
 
 The feature workflow and format version 2 are designed in `workflows/feature-design.md`.
 
+Both workflow format versions support four optional stage keys.
+
+- `harness` selects `claude-code`, `codex`, `copilot`, `antigravity` or `local`.
+- `model` specifies a non-empty model ID. IDs starting with `claude-` belong to the `claude` family and IDs starting with `gpt-` belong to the `gpt` family. Other IDs require `family: any`. The validator checks `sameAs` and `otherThan` against known families, and the runner checks them when a family is resolved at run start.
+- `options` is a mapping with string keys. The runner checks the options declared by the selected harness at run start.
+- `mcpServers` is a list of server names matching `[A-Za-z0-9_-]+`. An empty list is valid.
+
+The validator rejects unknown stage keys. A Copilot stage without a `model` requires a compatible `models.default` from a repository profile. Pass the profile when validating a workflow that uses this fallback.
+
+```sh
+python workflows/validate.py --profile .aeolus/workflow.yml workflows/*.yaml
+```
+
 ## Repo companions
 
 These skills state principles. Each repo keeps companion skills (`<repo>-<area>`) for its code shape, folders and what its lint enforces, loaded together with the shared skill they extend.
