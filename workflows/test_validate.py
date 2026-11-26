@@ -23,6 +23,45 @@ class EveryWorkflowFile(unittest.TestCase):
                 self.assertEqual(errors(load(path)), [])
 
 
+class Feature(unittest.TestCase):
+    def test_gate_order_matches_analysis_size_and_design_risk(self):
+        workflow = load(HERE / "feature.yaml")
+        stages = workflow["stages"]
+        small = {"if": {"size": "small"}, "go": "implement"}
+        standard = {"go": "architect"}
+        self.assertEqual(stages["analyse"]["on"]["analyzed"], [
+            {"go": "ask:analysis"}, small, standard,
+        ])
+        self.assertEqual(workflow["gates"]["analysis"]["approve"], [small, standard])
+        self.assertEqual(stages["architect"]["on"]["ready"], [
+            {"go": "ask:design"},
+            {"if": {"risk": "high"}, "go": "stuck:high-risk"},
+            {"go": "implement"},
+        ])
+
+    def test_review_covers_qa_test_commits_before_finish(self):
+        workflow = load(HERE / "feature.yaml")
+        qa, review = (workflow["stages"][name] for name in ("qa", "review"))
+        self.assertEqual(qa["family"], {"sameAs": "implement"})
+        self.assertTrue(qa["writesCode"])
+        self.assertEqual(qa["checks"], ["onOrigin", "testsOnly"])
+        self.assertIn("results.qa", review["input"])
+        self.assertEqual(review["family"], {"otherThan": "implement"})
+        self.assertEqual(review["on"]["request-changes"][0], {"if": "qaTests", "go": "qa"})
+        self.assertEqual(workflow["headCheck"], ["review", "qa"])
+
+
+    def test_approved_qa_tests_resume_the_saved_qa_verdict(self):
+        stages = load(HERE / "feature.yaml")["stages"]
+        # The runner resumes the saved verdict after approving QA's test commits.
+        self.assertEqual(stages["review"]["on"]["approve"], [{"go": "qa"}])
+        self.assertEqual(stages["qa"]["on"]["pass"], [{"go": "finish"}])
+        self.assertEqual(stages["qa"]["on"]["fail"], [
+            {"if": "qaLoop", "go": "stuck:qa-fails"},
+            {"go": "fix"},
+        ])
+
+
 class BugFix(unittest.TestCase):
     def test_bug_fix_stays_at_version_one(self):
         self.assertEqual(bug_fix()["version"], 1)

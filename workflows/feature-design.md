@@ -79,7 +79,7 @@ A route reaches a gate with `ask:<gate>`. The run start message names which gate
 
 A gate card goes to the owner and never to the Lead. The pick on the card still comes from a Lead: the Lead reads the analysis or the design and names a pick with its why. That Lead turn does not settle the gate; only the owner's answer does.
 
-How the design card treats a high risk is open: see [Risk routing](#risk-routing).
+The design card shows the architect's risk at the top, in bold when it is high.
 
 ### The owner's note
 
@@ -142,12 +142,7 @@ The change size limit is 400 lines (`limits.changeLines`), the same as bug-fix a
 
 The file names the stages whose result must still hold at the current head: the review's approval and QA's pass. Before the run finishes, the runner checks that no commit landed after either of them. If one did, the run goes back to that stage. A late commit cannot go out unreviewed or untested.
 
-**Open: four points of the head check.** They are not decided:
-
-1. How the file spells the head check.
-2. Which stage the run goes back to when both the review's approval and QA's pass are stale.
-3. What is compared with the pushed head: which commit stands for the review's approval and which for QA's pass.
-4. Whether a stuck review that was overruled (`approve`) counts as the review's approval for the commit it overruled.
+The file spells the check `headCheck: [review, qa]`. The runner compares the commit the reviewer approved and the ref QA tested, from the QA result, with the run branch's pushed head on origin. It returns to the first stale stage in the list, so review comes first when both are stale. Overruling a stuck review counts as approval of the commit it overruled. A later commit makes that approval stale.
 
 ## Stages and roles
 
@@ -168,7 +163,7 @@ The stages run in aw's order: analyse, architect (skipped for a small change), i
 - **Out of scope.** An analysis that finds the issue out of scope takes the route `stop:out-of-scope`.
 - **QA's tests.** The repository names QA's test projects and the test paths in its profile: the profile has an optional `qaTests` list beside `tests` and `testPaths`. The QA stage says `tests: fromRepository` and runs the `qaTests` projects. No other stage runs them.
 - **QA's check.** QA's check is `testsOnly`: it fails a QA result that changed anything outside the profile's `testPaths`. `redFirst` does not apply to QA's commits, which change only tests. The bug-fix file does not change.
-- **Open: QA's family.** The table keeps `sameAs: implement` for QA, but it is not decided. Q17 puts QA in the implementor's family (`sameAs: implement`), so one review in the other family covers the code and QA's tests; G9 sets family `any` for the architect and for QA. The two answers conflict on the same field.
+- **QA's family.** QA runs in the implementor's family (`sameAs: implement`), so the reviewer in the other family covers both implementation and QA's test commits.
 - **Reviewing QA's tests.** The same review stage reviews QA's test commits, and every QA result with test commits goes to that review round first: no route takes QA's test commits past it. The `qaTests` state routes the review's decisions: `approve` lets QA's decision route the run as it would without test commits, `request-changes` goes back to QA within `qaTestChanges`, and past it, or on `needs-human`, the run is stuck on `review-qa-tests`.
 - **QA and the setup.** When QA cannot run because of the setup, it answers `needs-human` with `cause: setup`. The rule `if: {cause: setup}` routes it to a setup card: one card to the owner only, never to the Lead, naming the setup, the same way a hook refusal does. A setup fault is fixed at its source, and the owner's `one-more-round` runs QA again. Any other `needs-human` is stuck on `qa-needs-human`.
 
@@ -176,7 +171,7 @@ The stages run in aw's order: analyse, architect (skipped for a small change), i
 
 The architect names `risk` in its result. With the design gate off, `risk: high` makes the run stuck on `high-risk`, and the Lead goes first; its decisions are `implement`, `redesign` (back to the architect) and `stop`.
 
-**Open: the risk on the design card.** With the design gate on, `ask:design` comes before the risk rule, so the owner sees the design card rather than a `high-risk` situation. How the card treats a high risk is not decided.
+With the design gate on, `ask:design` comes before the risk rule. The owner's design card shows the architect's risk at the top and puts high risk in bold. The owner's approval settles the risk and sends the run to implement. A change answer sends the run back to the architect with the owner's note.
 
 ## Result kinds
 
@@ -205,7 +200,7 @@ flowchart TD
   sNI -. "Lead, else owner: restart-analysis" .-> analyse
 
   architect[Architect] == "architect: ready" ==> gd{design gate on?}
-  gd -- "runner: yes" --> askD[["card: approve the design (pick from a Lead; how it treats a high risk is open)"]]
+  gd -- "runner: yes" --> askD[["card: approve the design (pick from a Lead, risk shown at the top)"]]
   askD -- "owner: approve" --> implement
   askD -- "owner: change, with a note" --> architect
   gd == "runner: no" ==> rk{risk high?}
@@ -285,6 +280,6 @@ What the edges mean:
 6. **QA loop.** `fail` goes to fix, then review, then QA again, within QA's `rounds`. Every QA result with test commits, a pass or a fail, goes to its own review round first, where the `qaTests` state routes it: `request-changes` goes back to QA within `qaTestChanges`, and the approval lets QA's decision go on, a pass to the head check and a fail as a fail without test commits would. No route takes QA's test commits to the head check or to fix unreviewed. A QA result that changed anything outside the test paths fails its `testsOnly` check. Defects that come back, or rounds used up, make the run stuck on `qa-fails`.
 7. **More time.** `continue` crews the same stage again, fresh, from the last pushed commit, within the `continues` budget. QA's `incomplete` counts as its continue. Past the budget the run is stuck.
 8. **Setup.** QA's `needs-human` with `cause: setup` is one card to the owner only, naming the setup. The owner's `one-more-round` runs QA again.
-9. **Head check.** A commit after the review's approval sends the run back to review. A commit after QA's pass sends it back to QA. Four of its points are open (see [The head check](#the-head-check)).
+9. **Head check.** The run goes back to the first stale stage in `headCheck`. Review comes first when both results are stale. See [The head check](#the-head-check) for the refs it compares.
 10. **Stuck exits.** Each stuck situation shows every decision its row in the situations table allows, and `stop`. The Lead decides first; what the Lead cannot settle goes to the owner as a card, who picks from the same decisions.
 11. **Stops.** `out-of-scope` stops the run with its reason. `stop` is a decision available in every stuck situation.
