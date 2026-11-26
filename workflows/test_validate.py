@@ -51,6 +51,17 @@ class Feature(unittest.TestCase):
         self.assertEqual(workflow["headCheck"], ["review", "qa"])
 
 
+    def test_approved_qa_tests_resume_the_saved_qa_verdict(self):
+        stages = load(HERE / "feature.yaml")["stages"]
+        # The runner resumes the saved verdict after approving QA's test commits.
+        self.assertEqual(stages["review"]["on"]["approve"], [{"go": "qa"}])
+        self.assertEqual(stages["qa"]["on"]["pass"], [{"go": "finish"}])
+        self.assertEqual(stages["qa"]["on"]["fail"], [
+            {"if": "qaLoop", "go": "stuck:qa-fails"},
+            {"go": "fix"},
+        ])
+
+
 class BugFix(unittest.TestCase):
     def test_bug_fix_stays_at_version_one(self):
         self.assertEqual(bug_fix()["version"], 1)
