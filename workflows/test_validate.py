@@ -561,5 +561,71 @@ class VersionTwo(unittest.TestCase):
                 self.refused("headCheck: expected a list of stage names")
 
 
+class Moved(unittest.TestCase):
+    """The moved situation: the head moved under a run, with review, take-head and stop."""
+
+    def setUp(self):
+        self.v2 = VersionTwo("test_valid_v2_with_no_head_check_key")
+        self.v2.setUp()
+
+    def docs(self):
+        return {"version 1": bug_fix(), "version 2": copy.deepcopy(self.v2.doc)}
+
+    def test_moved_accepts_review_take_head_and_stop(self):
+        for version, doc in self.docs().items():
+            for decisions in (["review", "take-head", "stop"], ["take-head", "stop"], ["stop"]):
+                with self.subTest(version=version, decisions=decisions):
+                    doc["stuck"]["moved"] = decisions
+                    self.assertEqual(errors(doc), [])
+
+    def test_moved_refuses_review_without_a_review_stage(self):
+        for version, doc in self.docs().items():
+            with self.subTest(version=version):
+                doc["stages"]["check"] = doc["stages"].pop("review")
+                for stage in doc["stages"].values():
+                    for decision, target in (stage.get("on") or {}).items():
+                        if target == "review":
+                            stage["on"][decision] = "check"
+                        elif isinstance(target, list):
+                            for rule in target:
+                                if rule["go"] == "review":
+                                    rule["go"] = "check"
+                doc["stuck"]["moved"] = ["take-head", "stop"]
+                self.assertEqual(errors(doc), [])
+                doc["stuck"]["moved"] = ["review", "take-head", "stop"]
+                found = errors(doc)
+                self.assertTrue(any("stuck.moved" in error and "review" in error
+                                    for error in found), found)
+
+    def test_moved_refuses_other_decisions(self):
+        for version, doc in self.docs().items():
+            for decision in ("ask", "one-more-round", "replan", "approve", {"review": "review"}):
+                with self.subTest(version=version, decision=decision):
+                    doc["stuck"]["moved"] = [decision, "stop"]
+                    found = errors(doc)
+                    self.assertTrue(any("stuck.moved" in error for error in found), found)
+
+    def test_review_and_take_head_belong_to_moved_alone(self):
+        for version, doc in self.docs().items():
+            for decision in ("review", "take-head"):
+                with self.subTest(version=version, decision=decision):
+                    doc["stuck"]["silent"] = [decision, "stop"]
+                    found = errors(doc)
+                    self.assertTrue(any("stuck.silent" in error for error in found), found)
+                    doc["stuck"]["silent"] = ["stop"]
+
+    def test_head_unmoved_is_an_accepted_check(self):
+        doc = self.v2.doc
+        doc["stages"]["review"]["checks"] = ["headUnmoved"]
+        self.assertEqual(errors(doc), [])
+        doc["stages"]["review"]["checks"] = ["headMoved"]
+        self.assertTrue(any("review.checks" in error for error in errors(doc)))
+
+    def test_both_workflow_files_list_moved_with_its_three_decisions(self):
+        for path in (HERE / "bug-fix.yaml", HERE / "feature.yaml"):
+            with self.subTest(file=path.name):
+                self.assertEqual(load(path)["stuck"]["moved"], ["review", "take-head", "stop"])
+
+
 if __name__ == "__main__":
     unittest.main()
