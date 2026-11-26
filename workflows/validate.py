@@ -40,7 +40,7 @@ V2_DECISION_STAGES = {
     "restart-analysis": "analyse", "design": "architect", "redesign": "architect",
     "implement": "implement", "fix": "fix", "qa": "qa", "resolve": "resolve",
 }
-V2_STATE_CONDITIONS = {"qaTests", "qaLoop", "reviewLoop", "afterQaFail"}
+V2_STATE_CONDITIONS = {"qaTests", "qaLoop", "reviewLoop", "afterQaFail", "storyTask"}
 V2_CHECKS = {"onOrigin", "redFirst", "noRewrite", "size", "tests", "testsOnly", "headUnmoved"}
 # moved: the run branch's head moved under the run. Its decisions are its own.
 MOVED = "moved"
@@ -300,6 +300,52 @@ def v2_settings(doc, stages, found):
                 found.append(f"{name}.tests: expected fromRepository or a list of test project names")
 
 
+def positive_integer(value, where, found):
+    if type(value) is not int or value < 1:
+        found.append(f"{where}: expected a positive integer")
+
+
+def story_stage(stage, where, role, families, found):
+    if not isinstance(stage, dict):
+        found.append(f"{where}: expected a stage mapping")
+        return
+    if stage.get("role") != role:
+        found.append(f"{where}.role: expected {role}")
+    if stage.get("tier") not in ("small", "medium", "large"):
+        found.append(f"{where}.tier: expected small, medium or large")
+    if stage.get("family") not in families:
+        found.append(f"{where}.family: expected {' or '.join(families)}")
+    if role == "planner":
+        if stage.get("result") != "plan":
+            found.append(f"{where}.result: expected plan")
+        positive_integer(stage.get("deadlineMinutes"), f"{where}.deadlineMinutes", found)
+
+
+def story_settings(story, found):
+    if not isinstance(story, dict):
+        found.append("story: expected a mapping")
+        return
+
+    families = tuple(sorted(FAMILIES))
+    story_stage(story.get("planner"), "story.planner", "planner", families, found)
+    positive_integer(story.get("parallel"), "story.parallel", found)
+    if story.get("merge") != "merge-resolve":
+        found.append("story.merge: expected merge-resolve")
+
+    integration = story.get("integration")
+    if not isinstance(integration, dict):
+        found.append("story.integration: expected a mapping")
+        return
+
+    for name, role, families in (
+        ("review", "reviewer", ("other",)),
+        ("qa", "qa", families),
+        ("fix", "implementor", families),
+    ):
+        story_stage(integration.get(name), f"story.integration.{name}", role, families, found)
+    positive_integer(integration.get("rounds"), "story.integration.rounds", found)
+
+
 def model_family(model):
     if isinstance(model, str):
         prefix, dash, _ = model.partition("-")
@@ -405,6 +451,12 @@ def errors(doc, profile=None):
     else:
         routes = v2_routes(doc, stages, stuck, found)
         v2_settings(doc, stages, found)
+
+    if "story" in doc:
+        if version == 2:
+            story_settings(doc["story"], found)
+        else:
+            found.append("story: requires workflow format version 2")
 
     models = profile.get("models") if isinstance(profile, dict) else None
     default_model = models.get("default") if isinstance(models, dict) else None

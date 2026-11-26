@@ -39,18 +39,39 @@ A rule's `go` is one of these targets:
 A condition is either a test on a field of the stage's result, or a state condition.
 
 - **A result field test** names the field and the value it must have, as in `if: {size: small}`, `if: {risk: high}` or `if: {cause: setup}`. The validator checks that the field belongs to the stage's result kind. `validate.py` reads each result kind's fields from its own small list in this repository, and the runner's schema tests check that list against the runner's schemas, so the two cannot drift apart.
-- **A state condition** is a name from a short fixed list that the validator and the router both hold: a run's state, not a result. The list holds aw's four:
+- **A state condition** names run state. The validator and router share this fixed list.
 
 | Condition | Stage | Holds when |
 | --- | --- | --- |
 | `qaTests` | review | This review round is a round of QA's test commits, not of the implementor's code. |
 | `reviewLoop` | review | A current blocking item repeats one from an earlier review round or is disputed by the implementor. Either case can lead to `review-stuck`. |
 | `qaLoop` | qa | QA's defects in this round repeat defects from an earlier QA round. |
-| `afterQaFail` | fix | The last verdict on the work, among the reviews, the gates and QA's fails, is QA's fail: the fix answers QA, not a review. |
+| `afterQaFail` | fix | QA failed in the most recent verdict, so the fix answers QA. |
+| `storyTask` | review | The current run is a task of a story. |
 
 A loop condition that holds names the repeated or disputed items that triggered it, and the stuck situation it leads to shows them.
 
 Budgets are not conditions: the runner counts them, as [Budgets](#budgets) says.
+
+### Stories
+
+A version 2 workflow opts into stories with a top-level `story` block. A workflow without the block cannot become a story. The approved stories design gives the feature workflow this configuration.
+
+```yaml
+story:
+  planner: {role: planner, tier: large, family: any, deadlineMinutes: 30, result: plan}
+  parallel: 3
+  integration:
+    review: {role: reviewer, tier: large, family: other}
+    qa: {role: qa, tier: large, family: any}
+    fix: {role: implementor, tier: large, family: any}
+    rounds: 3
+  merge: merge-resolve
+```
+
+The [Planner](roles/planner.md) decides whether the work fits one task or needs a plan, needs more information, or is out of scope. The runner starts a task's run at the workflow's first regular stage. On an approved review, the feature workflow checks `storyTask` before its QA route and sends the task to `finish`.
+
+`parallel` caps the number of tasks of one story running at once. It must be a positive integer. The story branch uses `merge-resolve` for conflicts. The integration review and QA check the combined work. The integration fix stage addresses failures within the positive `integration.rounds` budget. Integration review uses `family: other` to run in the other family from most of the story's implementers.
 
 ### Decision words
 
@@ -206,11 +227,13 @@ With the design gate on, `ask:design` comes before the risk rule. The owner's de
 
 ## Result kinds
 
-Version 2 adds two result kinds to the runner's schemas and one field to the analysis kind. A route reads these fields, so each field is in the list `validate.py` checks against, and the runner's schema tests keep that list equal to the schemas.
+Version 2 extends the analysis result and adds design, QA, and plan results. A route reads these fields, so each field is in the list `validate.py` checks against, and the runner's schema tests keep that list equal to the schemas.
 
 - `analysis` adds `size`: `small` or `standard`.
 - `design` is new. It carries `risk` and the changes.
 - `qa` is new. It carries the defect ids, the ref the tests are on, what failed, and the cause (`setup` or `product`). The ref QA tested is the common `commit`: the run branch head when QA finishes, its own test commit when it made one, as aw's QA result names it. A pass or a fail without it fails its result check. `automation` names the branch and commit of tests kept in another repository, or `none`.
+
+- `plan` carries `decision`, `summary`, `criteria`, `tasks`, `order`, and `questions`. Story criteria have stable IDs, observable text, and sources. Each task names the criteria it covers, its own acceptance criteria, dependencies, areas, and contracts. A revision preserves done, running, and merged tasks in full.
 
 ## The flow of `workflows/feature.yaml`
 
@@ -255,7 +278,8 @@ flowchart TD
   review[Review] -- "reviewer: approve, qaTests" --> qd{QA passed?}
   review -- "reviewer: request-changes, qaTests, within qaTestChanges" --> qa
   review -- "runner: qaTests, qaTestChanges used up; or reviewer: needs-human, qaTests" --> sRQ[/stuck: review-qa-tests/]
-  review == "reviewer: approve, not qaTests" ==> qa
+  review -- "reviewer: approve, storyTask" --> taskFinish([finish the story task])
+  review == "reviewer: approve, single task" ==> qa
   review -- "reviewer: request-changes, not qaTests, within rounds" --> fix
   review -- "runner: not qaTests, rounds used up, or blocking items come back" --> sRS[/stuck: review-stuck/]
   review -- "reviewer: needs-human, not qaTests" --> sRH[/stuck: review-needs-human/]

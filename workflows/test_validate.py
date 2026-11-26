@@ -54,15 +54,130 @@ class Feature(unittest.TestCase):
         self.assertEqual(workflow["headCheck"], ["review", "qa"])
 
 
+    def test_approved_story_task_finishes_before_qa(self):
+        review = load(HERE / "feature.yaml")["stages"]["review"]
+        self.assertEqual(review["on"]["approve"], [
+            {"if": "storyTask", "go": "finish"},
+            {"go": "qa"},
+        ])
+
     def test_approved_qa_tests_resume_the_saved_qa_verdict(self):
         stages = load(HERE / "feature.yaml")["stages"]
         # The runner resumes the saved verdict after approving QA's test commits.
-        self.assertEqual(stages["review"]["on"]["approve"], [{"go": "qa"}])
+        self.assertEqual(stages["review"]["on"]["approve"][-1], {"go": "qa"})
         self.assertEqual(stages["qa"]["on"]["pass"], [{"go": "finish"}])
         self.assertEqual(stages["qa"]["on"]["fail"], [
             {"if": "qaLoop", "go": "stuck:qa-fails"},
             {"go": "fix"},
         ])
+
+
+def story_block():
+    return {
+        "planner": {
+            "role": "planner", "tier": "large", "family": "any",
+            "deadlineMinutes": 30, "result": "plan",
+        },
+        "parallel": 3,
+        "integration": {
+            "review": {"role": "reviewer", "tier": "large", "family": "other"},
+            "qa": {"role": "qa", "tier": "large", "family": "any"},
+            "fix": {"role": "implementor", "tier": "large", "family": "any"},
+            "rounds": 3,
+        },
+        "merge": "merge-resolve",
+    }
+
+
+class Stories(unittest.TestCase):
+    def setUp(self):
+        self.doc = load(HERE / "feature.yaml")
+        self.story = self.doc["story"] = story_block()
+
+    def refused(self, path):
+        found = errors(self.doc)
+        self.assertTrue(any(error.startswith(f"{path}:") for error in found), found)
+
+    def test_feature_opts_into_stories(self):
+        feature = load(HERE / "feature.yaml")
+        self.assertEqual(feature.get("story"), story_block())
+        self.assertEqual(errors(feature), [])
+
+    def test_story_block_is_optional(self):
+        del self.doc["story"]
+        self.assertEqual(errors(self.doc), [])
+
+    def test_story_block_is_only_available_in_version_two(self):
+        self.doc = bug_fix()
+        self.doc["story"] = story_block()
+        self.refused("story")
+
+    def test_story_block_requires_a_mapping(self):
+        self.doc["story"] = None
+        self.refused("story")
+
+    def test_story_requires_a_planner(self):
+        del self.story["planner"]
+        self.refused("story.planner")
+
+    def test_planner_requires_its_role_result_and_stage_settings(self):
+        for key, invalid in (
+            ("role", "analyst"), ("result", "analysis"), ("tier", "tiny"),
+            ("family", "other"), ("deadlineMinutes", 0),
+        ):
+            with self.subTest(key=key):
+                self.story["planner"] = dict(story_block()["planner"], **{key: invalid})
+                self.refused(f"story.planner.{key}")
+
+    def test_parallel_accepts_one(self):
+        self.story["parallel"] = 1
+        self.assertEqual(errors(self.doc), [])
+
+    def test_parallel_requires_a_positive_integer(self):
+        for value in (None, -1, 0, True, 1.5):
+            with self.subTest(value=value):
+                self.story["parallel"] = value
+                self.refused("story.parallel")
+
+    def test_story_requires_integration(self):
+        del self.story["integration"]
+        self.refused("story.integration")
+
+    def test_integration_requires_each_stage(self):
+        for stage in ("review", "qa", "fix"):
+            with self.subTest(stage=stage):
+                self.story["integration"] = story_block()["integration"]
+                del self.story["integration"][stage]
+                self.refused(f"story.integration.{stage}")
+
+    def test_integration_checks_roles_and_families(self):
+        review = self.story["integration"]["review"]
+        review.update(role="planner", family="any")
+        self.refused("story.integration.review.role")
+        self.refused("story.integration.review.family")
+
+    def test_integration_requires_positive_rounds(self):
+        self.story["integration"]["rounds"] = 0
+        self.refused("story.integration.rounds")
+
+    def test_story_names_the_merge_resolution_workflow(self):
+        self.story["merge"] = "feature"
+        self.refused("story.merge")
+
+
+class PlanResult(unittest.TestCase):
+    def test_plan_lists_the_approved_result_fields(self):
+        fields = json.loads((HERE / "result-fields.json").read_text())
+        self.assertEqual(set(fields.get("plan", [])),
+                         {"decision", "summary", "criteria", "tasks", "order", "questions"})
+
+    def test_planner_role_names_every_field_in_the_result_block(self):
+        path = HERE / "roles" / "planner.md"
+        self.assertTrue(path.is_file(), "the Planner role is required")
+        result = path.read_text().partition("## Result")[2]
+        for field in ("decision", "summary", "criteria", "tasks", "order", "questions"):
+            with self.subTest(field=field):
+                self.assertIn(f'`{field}`', result)
 
 
 class BugFix(unittest.TestCase):
@@ -374,6 +489,14 @@ class VersionTwo(unittest.TestCase):
         found = errors(self.doc)
         self.assertTrue(any(expected in error for error in found), found)
 
+    def test_story_task_is_a_state_condition(self):
+        self.rules[1]["if"] = "storyTask"
+        self.assertEqual(errors(self.doc), [])
+
+    def test_unknown_state_condition_is_refused(self):
+        self.rules[1]["if"] = "unknownState"
+        self.refused("known state condition")
+
     def test_valid_v2_with_no_head_check_key(self):
         self.assertEqual(errors(self.doc), [])
 
@@ -460,7 +583,8 @@ class VersionTwo(unittest.TestCase):
         with (HERE / "result-fields.json").open() as f:
             fields = json.load(f)
         self.assertEqual(set(fields), {
-            "analysis", "code", "design", "review", "qa", "lead", "resolution", "resolution-review",
+            "analysis", "code", "design", "review", "qa", "lead", "plan",
+            "resolution", "resolution-review",
         })
         for stage in self.doc["stages"].values():
             for field in fields[stage["result"]]:
@@ -474,6 +598,9 @@ class VersionTwo(unittest.TestCase):
         with (HERE / "result-fields.json").open() as f:
             fields = json.load(f)
         for kind, names in fields.items():
+            # The Planner has a standalone result contract checked by PlanResult.
+            if kind == "plan":
+                continue
             with self.subTest(kind=kind):
                 self.assertTrue({"task", "issue", "status", "pr", "runId"} <= set(names))
 
