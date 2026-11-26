@@ -103,7 +103,7 @@ def v1_routes(stages, stuck, found):
     routes = {}
     for situation, decisions in stuck.items():
         if situation == MOVED:
-            moved_targets(decisions, stages, found)
+            routes[f"{STUCK}{MOVED}"] = moved_targets(decisions, stages, found)
             continue
         for decision in decisions or []:
             if not isinstance(decision, str) or decision not in DECISIONS:
@@ -448,9 +448,9 @@ def errors(doc, profile=None):
 
     first = next(iter(stages))
     reached, todo = {first}, [first]
-    if version == 2:
-        todo.extend(f"{STUCK}{situation}" for situation in RUNNER_SITUATIONS
-                    if f"{STUCK}{situation}" in routes)
+    implicit_situations = (*RUNNER_SITUATIONS, MOVED) if version == 2 else (MOVED,)
+    todo.extend(f"{STUCK}{situation}" for situation in implicit_situations
+                if f"{STUCK}{situation}" in routes)
     while todo:
         for target in routes[todo.pop()]:
             if target in routes and target not in reached:
