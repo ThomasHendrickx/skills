@@ -1,0 +1,150 @@
+workflow: feature
+version: 2
+headCheck: [review, qa]
+limits:
+  runRetries: 1
+  resultRetries: 1
+  leadTurns: 2
+  changeLines: 400
+  continues: 3
+  qaTestChanges: 2
+# The runner enforces continue and round budgets and sends QA test commits to
+# review before applying the QA verdict.
+stages:
+  analyse:
+    role: analyst
+    tier: large
+    family: any
+    deadlineMinutes: 20
+    writesCode: false
+    input: [issue, results.analyse]
+    result: analysis
+    checks: []
+    on:
+      analyzed:
+        - {go: ask:analysis}
+        - {if: {size: small}, go: implement}
+        - {go: architect}
+      needs-info: [{go: stuck:needs-info}]
+      out-of-scope: [{go: stop:out-of-scope}]
+  architect:
+    role: architect
+    tier: large
+    family: any
+    deadlineMinutes: 20
+    writesCode: false
+    input: [issue, results.analyse, results.architect]
+    result: design
+    checks: []
+    skills: [software-development, domain-modelling]
+    on:
+      ready:
+        - {go: ask:design}
+        - {if: {risk: high}, go: stuck:high-risk}
+        - {go: implement}
+      needs-human: [{go: stuck:design-needs-human}]
+  implement:
+    role: implementor
+    tier: large
+    family: any
+    deadlineMinutes: 45
+    writesCode: true
+    input: [issue, results.analyse, results.architect]
+    result: code
+    checks: [onOrigin, redFirst, noRewrite, size, tests]
+    tests: fromRepository
+    on:
+      done: [{go: review}]
+      continue: [{go: implement}]
+      blocked: [{go: stuck:implement-blocked}]
+  review:
+    role: reviewer
+    tier: large
+    family: {otherThan: implement}
+    deadlineMinutes: 20
+    writesCode: false
+    input: [issue, results.analyse, results.architect, results.implement, results.fix, results.qa, diff]
+    result: review
+    checks: [onOrigin]
+    rounds: 3
+    on:
+      approve:
+        - {if: qaTests, go: finish}
+        - {go: qa}
+      request-changes:
+        - {if: qaTests, go: qa}
+        - {if: reviewLoop, go: stuck:review-stuck}
+        - {go: fix}
+      needs-human:
+        - {if: qaTests, go: stuck:review-qa-tests}
+        - {go: stuck:review-needs-human}
+  qa:
+    role: qa
+    tier: large
+    family: {sameAs: implement}
+    deadlineMinutes: 60
+    writesCode: true
+    input: [issue, results.analyse, results.architect, results.implement, results.fix, results.review, diff]
+    result: qa
+    checks: [onOrigin, testsOnly]
+    tests: fromRepository
+    skills: [software-development, test-driven-development]
+    rounds: 3
+    on:
+      pass: [{go: finish}]
+      fail:
+        - {if: qaLoop, go: stuck:qa-fails}
+        - {go: fix}
+      incomplete: [{go: qa}]
+      needs-human:
+        - {if: {cause: setup}, go: stuck:qa-setup}
+        - {go: stuck:qa-needs-human}
+  fix:
+    role: implementor
+    tier: large
+    family: {sameAs: implement}
+    deadlineMinutes: 30
+    writesCode: true
+    input: [issue, results.analyse, results.architect, results.implement, results.review, results.qa, diff]
+    result: code
+    checks: [onOrigin, redFirst, noRewrite, size, tests]
+    tests: fromRepository
+    on:
+      done: [{go: review}]
+      continue: [{go: fix}]
+      blocked: [{go: stuck:fix-blocked}]
+      redesign: [{go: stuck:fix-needs-redesign}]
+      no-change:
+        - {if: afterQaFail, go: stuck:qa-fails}
+        - {go: stuck:review-stuck}
+gates:
+  analysis:
+    approve:
+      - {if: {size: small}, go: implement}
+      - {go: architect}
+    change: analyse
+  design:
+    approve: implement
+    change: architect
+stuck:
+  needs-info: [{restart-analysis: analyse}, stop]
+  high-risk: [{implement: implement}, {redesign: architect}, stop]
+  design-needs-human: [{implement: implement}, {redesign: architect}, stop]
+  implement-blocked: [{implement: implement}, {redesign: architect}, stop]
+  implement-continue: [{implement: implement}, {redesign: architect}, stop]
+  implement-protected: [{implement: implement}, {redesign: architect}, stop]
+  fix-blocked: [{fix: fix}, {redesign: architect}, stop]
+  fix-continue: [{fix: fix}, {redesign: architect}, stop]
+  fix-needs-redesign: [{fix: fix}, {redesign: architect}, stop]
+  fix-protected: [{fix: fix}, {redesign: architect}, stop]
+  review-stuck: [{fix: fix}, approve, stop]
+  review-qa-tests: [{qa: qa}, approve, {fix: fix}, stop]
+  review-needs-human: [{fix: fix}, approve, {redesign: architect}, stop]
+  qa-fails: [{fix: fix}, {redesign: architect}, stop]
+  qa-needs-human: [{qa: qa}, stop]
+  qa-incomplete: [{qa: qa}, stop]
+  qa-protected: [{qa: qa}, stop]
+  qa-setup: [one-more-round, stop]
+  rounds: [one-more-round, split, ask, stop]
+  loop: [one-more-round, ask, stop]
+  silent: [one-more-round, ask, stop]
