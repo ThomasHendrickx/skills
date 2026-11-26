@@ -54,10 +54,17 @@ class Feature(unittest.TestCase):
         self.assertEqual(workflow["headCheck"], ["review", "qa"])
 
 
+    def test_approved_story_task_finishes_before_qa(self):
+        review = load(HERE / "feature.yaml")["stages"]["review"]
+        self.assertEqual(review["on"]["approve"], [
+            {"if": "storyTask", "go": "finish"},
+            {"go": "qa"},
+        ])
+
     def test_approved_qa_tests_resume_the_saved_qa_verdict(self):
         stages = load(HERE / "feature.yaml")["stages"]
         # The runner resumes the saved verdict after approving QA's test commits.
-        self.assertEqual(stages["review"]["on"]["approve"], [{"go": "qa"}])
+        self.assertEqual(stages["review"]["on"]["approve"][-1], {"go": "qa"})
         self.assertEqual(stages["qa"]["on"]["pass"], [{"go": "finish"}])
         self.assertEqual(stages["qa"]["on"]["fail"], [
             {"if": "qaLoop", "go": "stuck:qa-fails"},
@@ -373,6 +380,14 @@ class VersionTwo(unittest.TestCase):
     def refused(self, expected):
         found = errors(self.doc)
         self.assertTrue(any(expected in error for error in found), found)
+
+    def test_story_task_is_a_state_condition(self):
+        self.rules[1]["if"] = "storyTask"
+        self.assertEqual(errors(self.doc), [])
+
+    def test_unknown_state_condition_is_refused(self):
+        self.rules[1]["if"] = "unknownState"
+        self.refused("known state condition")
 
     def test_valid_v2_with_no_head_check_key(self):
         self.assertEqual(errors(self.doc), [])
