@@ -21,6 +21,7 @@ STAGE_KEYS = {
     "checks", "tests", "on", "rounds", "skills", "harness", "model", "options", "mcpServers",
 }
 MCP_SERVER_NAME = re.compile(r"[A-Za-z0-9_-]+")
+WORKFLOW_TYPE = re.compile(r"[a-z]{1,8}")
 END = "finish"
 STUCK = "stuck:"
 ASK = "ask:"
@@ -351,6 +352,10 @@ def errors(doc, profile=None):
     if type(version) is not int or version not in (1, 2):
         return [f"version: expected 1 or 2, got {version!r}"]
     found = []
+    if "type" in doc or version == 2:
+        kind = doc.get("type")
+        if not isinstance(kind, str) or not WORKFLOW_TYPE.fullmatch(kind):
+            found.append(f"type: expected 1 to 8 lowercase letters, got {kind!r}")
     stages = doc.get("stages")
     stuck = doc.get("stuck", {})
     if not stages:

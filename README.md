@@ -47,6 +47,8 @@ Stage-by-stage runs for an agent workflow runner, in `workflows/`, read at a rel
 
 - `bug-fix`: analyse the issue, implement the fix test first, review it in the other model family, fix what the review blocks.
 
+Each file declares a top-level `type`, a short name for its kind of work: `fix` for `bug-fix` and `feat` for `feature`. A runner puts it in each run's id, `run_<repository key>_<issue>_<type>_<attempt>`. A type is 1 to 8 lowercase letters; format version 2 requires it, and the validator checks it in version 1 when a file carries one.
+
 The feature workflow and format version 2 are designed in `workflows/feature-design.md`.
 
 Both workflow format versions support four optional stage keys.

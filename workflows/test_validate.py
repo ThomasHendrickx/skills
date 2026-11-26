@@ -70,6 +70,10 @@ class BugFix(unittest.TestCase):
         self.assertEqual(bug_fix()["version"], 1)
         self.assertEqual(errors(bug_fix()), [])
 
+    def test_each_workflow_file_carries_its_type(self):
+        self.assertEqual(bug_fix()["type"], "fix")
+        self.assertEqual(load(HERE / "feature.yaml")["type"], "feat")
+
     def test_on_stays_a_key(self):
         # YAML 1.1 reads a bare `on` as true; the format means the word.
         self.assertIn("on", bug_fix()["stages"]["analyse"])
@@ -303,6 +307,7 @@ class VersionTwo(unittest.TestCase):
     def setUp(self):
         self.doc = {
             "version": 2,
+            "type": "feat",
             "limits": {"continues": 3, "qaTestChanges": 2},
             "stages": {
                 "analyse": {
@@ -371,6 +376,27 @@ class VersionTwo(unittest.TestCase):
 
     def test_valid_v2_with_no_head_check_key(self):
         self.assertEqual(errors(self.doc), [])
+
+    def test_type_is_required_in_version_two(self):
+        del self.doc["type"]
+        self.refused("type:")
+
+    def test_type_is_lowercase_letters_up_to_eight(self):
+        for value in ("fix", "feat", "abcdefgh"):
+            with self.subTest(value=value):
+                self.doc["type"] = value
+                self.assertEqual(errors(self.doc), [])
+        for value in ("", "abcdefghi", "Fix", "bug-fix", "fix1", "fïx", 1, None, ["fix"]):
+            with self.subTest(value=value):
+                self.doc["type"] = value
+                self.refused("type:")
+
+    def test_version_one_checks_a_type_it_carries(self):
+        doc = bug_fix()
+        del doc["type"]
+        self.assertEqual(errors(doc), [])
+        doc["type"] = "Bug-Fix"
+        self.assertTrue(any("type:" in error for error in errors(doc)))
 
     def test_only_integer_versions_one_and_two_are_supported(self):
         for value in (None, True, "2", 2.0, 0, 3, []):
