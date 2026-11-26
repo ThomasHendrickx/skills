@@ -459,7 +459,9 @@ class VersionTwo(unittest.TestCase):
     def test_result_fields_are_shared_data(self):
         with (HERE / "result-fields.json").open() as f:
             fields = json.load(f)
-        self.assertEqual(set(fields), {"analysis", "code", "design", "review", "qa", "lead"})
+        self.assertEqual(set(fields), {
+            "analysis", "code", "design", "review", "qa", "lead", "resolution", "resolution-review",
+        })
         for stage in self.doc["stages"].values():
             for field in fields[stage["result"]]:
                 with self.subTest(kind=stage["result"], field=field):
@@ -640,6 +642,83 @@ class Moved(unittest.TestCase):
         for path in (HERE / "bug-fix.yaml", HERE / "feature.yaml"):
             with self.subTest(file=path.name):
                 self.assertEqual(load(path)["stuck"]["moved"], ["review", "take-head", "stop"])
+
+
+def merge_resolve():
+    return load(HERE / "merge-resolve.yaml")
+
+
+class MergeResolve(unittest.TestCase):
+    def test_merge_resolve_is_a_valid_version_two_file(self):
+        doc = merge_resolve()
+        self.assertEqual((doc["workflow"], doc["type"], doc["version"]), ("merge-resolve", "merge", 2))
+        self.assertEqual(errors(doc), [])
+
+    def test_resolve_is_an_implementor_stage_that_merges_without_a_rebase(self):
+        resolve = merge_resolve()["stages"]["resolve"]
+        self.assertEqual(resolve["role"], "implementor")
+        self.assertEqual(resolve["result"], "resolution")
+        self.assertTrue(resolve["writesCode"])
+        self.assertEqual(resolve["checks"], ["onOrigin", "noRewrite", "tests", "headUnmoved"])
+        self.assertEqual(resolve["tests"], "fromRepository")
+        self.assertTrue({"mergeCommit", "issue", "prDescription"} <= set(resolve["input"]))
+        self.assertTrue({"conflicts", "failingChecks"} <= set(resolve["input"]))
+        self.assertEqual(resolve["on"], {
+            "done": [{"go": "resolution-review"}],
+            "blocked": [{"go": "stuck:merge-conflict"}],
+        })
+
+    def test_resolution_review_reads_the_resolution_alone_in_the_other_family(self):
+        review = merge_resolve()["stages"]["resolution-review"]
+        self.assertEqual(review["role"], "reviewer")
+        self.assertEqual(review["result"], "resolution-review")
+        self.assertEqual(review["family"], {"otherThan": "resolve"})
+        self.assertFalse(review["writesCode"])
+        self.assertEqual(review["rounds"], 3)
+        self.assertNotIn("diff", review["input"])
+        self.assertTrue({"remergeDiff", "fixCommits", "results.resolve"} <= set(review["input"]))
+        self.assertEqual(review["on"], {
+            "approve": [{"go": "finish"}],
+            "request-changes": [{"go": "resolve"}],
+        })
+
+    def test_merge_conflict_allows_resolve_again_and_stop(self):
+        stuck = merge_resolve()["stuck"]
+        self.assertEqual(stuck["merge-conflict"], [{"resolve": "resolve"}, "stop"])
+        self.assertEqual(stuck["moved"], ["take-head", "stop"])
+
+    def test_resolve_decision_must_name_the_resolve_stage(self):
+        doc = merge_resolve()
+        doc["stuck"]["merge-conflict"][0] = {"resolve": "resolution-review"}
+        self.assertTrue(any("stuck.merge-conflict" in error for error in errors(doc)))
+        doc = merge_resolve()
+        doc["stages"]["resolver"] = doc["stages"].pop("resolve")
+        self.assertTrue(any("'resolve' points to missing stage" in error for error in errors(doc)))
+
+
+class ResolutionResults(unittest.TestCase):
+    def setUp(self):
+        with (HERE / "result-fields.json").open() as f:
+            self.fields = json.load(f)
+        self.common = set(self.fields["code"]) - {"redTestFiles"}
+
+    def test_resolution_names_the_merge_and_what_it_resolved(self):
+        self.assertEqual(set(self.fields["resolution"]),
+                         self.common | {"merged", "mergeCommit", "conflicts", "fixCommits"})
+
+    def test_resolution_review_names_its_blocking_items(self):
+        self.assertEqual(set(self.fields["resolution-review"]), self.common | {"blocking"})
+
+    def test_each_stage_tests_only_its_own_result_fields(self):
+        for stage, own, foreign in (("resolve", "mergeCommit", "blocking"),
+                                    ("resolution-review", "blocking", "mergeCommit")):
+            with self.subTest(stage=stage):
+                doc = merge_resolve()
+                rules = next(iter(doc["stages"][stage]["on"].values()))
+                rules.insert(0, {"if": {own: "value"}, "go": "finish"})
+                self.assertEqual(errors(doc), [])
+                rules[0]["if"] = {foreign: "value"}
+                self.assertTrue(any(f"{foreign!r} is not a field" in error for error in errors(doc)))
 
 
 if __name__ == "__main__":

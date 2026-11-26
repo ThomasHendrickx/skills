@@ -33,12 +33,12 @@ V2_SITUATIONS = {
     "implement-blocked", "implement-continue", "implement-protected", "fix-blocked",
     "fix-continue", "fix-needs-redesign", "fix-protected", "review-stuck",
     "review-qa-tests", "review-needs-human", "qa-fails", "qa-needs-human",
-    "qa-incomplete", "qa-protected", "qa-setup",
+    "qa-incomplete", "qa-protected", "qa-setup", "merge-conflict",
 }
 V2_FIXED_DECISIONS = {"stop", "ask", "one-more-round", "split", "approve"}
 V2_DECISION_STAGES = {
     "restart-analysis": "analyse", "design": "architect", "redesign": "architect",
-    "implement": "implement", "fix": "fix", "qa": "qa",
+    "implement": "implement", "fix": "fix", "qa": "qa", "resolve": "resolve",
 }
 V2_STATE_CONDITIONS = {"qaTests", "qaLoop", "reviewLoop", "afterQaFail"}
 V2_CHECKS = {"onOrigin", "redFirst", "noRewrite", "size", "tests", "testsOnly", "headUnmoved"}

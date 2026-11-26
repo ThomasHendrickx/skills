@@ -22,5 +22,13 @@
   "lead": [
     "task", "issue", "status", "pr", "runId", "stage", "step", "decision", "summary", "commit", "files", "tests", "findings", "criteria", "note",
     "situation", "pick", "why"
+  ],
+  "resolution": [
+    "task", "issue", "status", "pr", "runId", "stage", "step", "decision", "summary", "commit", "files", "tests", "findings", "criteria", "note",
+    "merged", "mergeCommit", "conflicts", "fixCommits"
+  ],
+  "resolution-review": [
+    "task", "issue", "status", "pr", "runId", "stage", "step", "decision", "summary", "commit", "files", "tests", "findings", "criteria", "note",
+    "blocking"
   ]
 }
