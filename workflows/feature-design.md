@@ -44,11 +44,11 @@ A condition is either a test on a field of the stage's result, or a state condit
 | Condition | Stage | Holds when |
 | --- | --- | --- |
 | `qaTests` | review | This review round is a round of QA's test commits, not of the implementor's code. |
-| `reviewLoop` | review | The review's blocking items repeat items from an earlier review round. |
+| `reviewLoop` | review | A current blocking item repeats one from an earlier review round or is disputed by the implementor. Either case can lead to `review-stuck`. |
 | `qaLoop` | qa | QA's defects in this round repeat defects from an earlier QA round. |
 | `afterQaFail` | fix | The last verdict on the work, among the reviews, the gates and QA's fails, is QA's fail: the fix answers QA, not a review. |
 
-A loop condition that holds names the items that came back, and the stuck situation it leads to shows them.
+A loop condition that holds names the repeated or disputed items that triggered it, and the stuck situation it leads to shows them.
 
 Budgets are not conditions: the runner counts them, as [Budgets](#budgets) says.
 
@@ -190,7 +190,7 @@ The stages run in aw's order: analyse, architect (skipped for a small change), i
 - **QA's tests.** The repository names QA's test projects and the test paths in its profile: the profile has an optional `qaTests` list beside `tests` and `testPaths`. The QA stage says `tests: fromRepository` and runs the `qaTests` projects. No other stage runs them.
 - **QA's check.** QA's check is `testsOnly`: it fails a QA result that changed anything outside the profile's `testPaths`. `redFirst` does not apply to QA's commits, which change only tests. The bug-fix file does not change.
 - **QA's family.** QA runs in the implementor's family (`sameAs: implement`), so the reviewer in the other family covers both implementation and QA's test commits.
-- **Reviewing QA's tests.** The same review stage reviews QA's test commits, and every QA result with test commits goes to that review round first: no route takes QA's test commits past it. The runner steps in there, as aw's runner does, and no route says it: it holds QA's decision, runs the review round of QA's test commits, and applies QA's routes only once that round approves. The `qaTests` state routes the review's decisions: `approve` lets QA's decision route the run as it would without test commits, `request-changes` goes back to QA within `qaTestChanges`, and past it, or on `needs-human`, the run is stuck on `review-qa-tests`.
+- **Reviewing QA's tests.** This feature design requires the runner to hold every QA result with test commits, including a fail, and run a separate round of the same review stage. Only after that round approves does the runner apply QA's routes. The runner handles this step automatically. In aw, QA test review begins after QA passes on the current head. On a fail, aw checks for a defect loop or an exhausted budget and otherwise routes to fix. The `qaTests` state routes the review's decisions: `approve` lets QA's decision route the run as it would without test commits, `request-changes` goes back to QA within `qaTestChanges`, and past it, or on `needs-human`, the run is stuck on `review-qa-tests`.
 - **QA and the setup.** When QA cannot run because of the setup, it answers `needs-human` with `cause: setup`. The rule `if: {cause: setup}` routes it to a setup card: one card to the owner only, never to the Lead, naming the setup, the same way a hook refusal does. A setup fault is fixed at its source, and the owner's `one-more-round` runs QA again. Any other `needs-human` is stuck on `qa-needs-human`.
 
 ### Risk routing

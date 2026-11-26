@@ -12,8 +12,9 @@ limits:
 # continues to implement-continue, fix-continue and qa-incomplete; review.rounds
 # to review-stuck; qaTestChanges to review-qa-tests; qa.rounds to qa-fails.
 # testsOnly failing after its retry leads to qa-protected.
-# The runner sends a QA result with test commits to a review round of its own
-# (qaTests) before it applies QA's routes.
+# This feature design requires a qaTests review for every QA result with test
+# commits, including a fail, before the runner applies QA's routes. In aw, this
+# review starts after QA passes on the current head.
 stages:
   analyse:
     role: analyst
