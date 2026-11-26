@@ -1,4 +1,5 @@
 workflow: feature
+type: feat
 version: 2
 headCheck: [review, qa]
 limits:

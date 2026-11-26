@@ -12,6 +12,7 @@
 # The runner raises loop (a fix that changes nothing, or a blocking finding that comes back)
 # and silent (a stage past its deadline after its retries); stages raise the rest.
 workflow: bug-fix
+type: fix
 version: 1
 limits:
   runRetries: 1
