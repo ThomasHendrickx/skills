@@ -3,6 +3,9 @@
 import copy
 import json
 import pathlib
+import subprocess
+import sys
+import tempfile
 import unittest
 
 from validate import errors, load
@@ -161,9 +164,8 @@ class StageHarnessSettings(unittest.TestCase):
         self.doc = load(HERE / "feature.yaml")
         self.stage = self.doc["stages"]["analyse"]
 
-    def refused(self, field):
-        found = errors(self.doc)
-        self.assertTrue(any(error.startswith(f"analyse.{field}:") for error in found), found)
+    def assert_field_error(self, found, field):
+        self.assertTrue(any(error.startswith(f"{field}:") for error in found), found)
 
     def test_stage_accepts_each_harness_and_the_new_keys(self):
         self.stage.update(model="gpt-5", options={}, mcpServers=["search", "repo-index"])
@@ -172,11 +174,30 @@ class StageHarnessSettings(unittest.TestCase):
                 self.stage["harness"] = harness
                 self.assertEqual(errors(self.doc), [])
 
+    def test_version_one_also_accepts_the_new_stage_keys(self):
+        doc = bug_fix()
+        doc["stages"]["analyse"].update(harness="copilot", model="gpt-5", options={}, mcpServers=[])
+        self.assertEqual(errors(doc), [])
+        doc["stages"]["analyse"]["harness"] = "terminal"
+        self.assert_field_error(errors(doc), "analyse.harness")
+
     def test_unknown_harness_is_refused(self):
         for harness in ("terminal", None, ["codex"]):
             with self.subTest(harness=harness):
                 self.stage["harness"] = harness
-                self.refused("harness")
+                self.assert_field_error(errors(self.doc), "analyse.harness")
+
+    def test_unknown_stage_key_is_refused(self):
+        self.stage["mcpServer"] = ["search"]
+        self.assert_field_error(errors(self.doc), "analyse.mcpServer")
+
+    def test_options_are_a_mapping_with_string_keys(self):
+        self.stage["options"] = {"setting": {"nested": [True, "value"]}}
+        self.assertEqual(errors(self.doc), [])
+        for options in (None, "setting", ["setting"], {42: "value"}):
+            with self.subTest(options=options):
+                self.stage["options"] = options
+                self.assert_field_error(errors(self.doc), "analyse.options")
 
     def test_mcp_servers_are_a_list_of_names(self):
         for servers in (
@@ -185,23 +206,88 @@ class StageHarnessSettings(unittest.TestCase):
         ):
             with self.subTest(servers=servers):
                 self.stage["mcpServers"] = servers
-                self.refused("mcpServers")
+                self.assert_field_error(errors(self.doc), "analyse.mcpServers")
 
     def test_copilot_needs_a_model(self):
         self.stage["harness"] = "copilot"
-        self.refused("model")
+        self.assert_field_error(errors(self.doc), "analyse.model")
+
+    def test_copilot_can_use_a_compatible_profile_default(self):
+        self.stage.update(harness="copilot", family="gpt")
+        self.assertEqual(errors(self.doc, profile={"models": {"default": "gpt-5"}}), [])
+        for default in ("claude-sonnet-4-6", "custom-model", "", None):
+            with self.subTest(default=default):
+                found = errors(self.doc, profile={"models": {"default": default}})
+                self.assert_field_error(found, "analyse.model")
+
+    def test_copilot_uses_its_explicit_model_ahead_of_the_default(self):
+        profile = {"models": {"default": "claude-sonnet-4-6"}}
+        self.stage.update(harness="copilot", family="gpt", model="gpt-5")
+        self.assertEqual(errors(self.doc, profile=profile), [])
+        self.stage.update(family="claude")
+        self.assert_field_error(errors(self.doc, profile=profile), "analyse.model")
+
+    def test_cli_accepts_a_profile_file(self):
+        self.stage.update(harness="copilot", family="gpt")
+        with tempfile.TemporaryDirectory() as scratch:
+            workflow = pathlib.Path(scratch) / "workflow.yaml"
+            workflow.write_text(json.dumps(self.doc), encoding="utf-8")
+            profile = pathlib.Path(scratch) / "profile.yml"
+            profile.write_text("models:\n  default: gpt-5\n", encoding="utf-8")
+            command = [sys.executable, str(HERE / "validate.py"), str(workflow)]
+            without_profile = subprocess.run(command, capture_output=True, text=True)
+            self.assertEqual(without_profile.returncode, 1, without_profile.stdout)
+            self.assertIn("analyse.model:", without_profile.stdout)
+            with_profile = subprocess.run(
+                [*command, "--profile", str(profile)], capture_output=True, text=True,
+            )
+            self.assertEqual(with_profile.returncode, 0, with_profile.stdout + with_profile.stderr)
 
     def test_stage_model_must_match_a_fixed_family(self):
         for family, model in (("claude", "gpt-5"), ("gpt", "claude-sonnet-4-6")):
             with self.subTest(family=family, model=model):
                 self.stage.update(family=family, model=model)
-                self.refused("model")
+                self.assert_field_error(errors(self.doc), "analyse.model")
+
+    def test_an_unclassified_model_requires_family_any(self):
+        self.stage["model"] = "custom-model"
+        self.assertEqual(errors(self.doc), [])
+        self.stage["family"] = "gpt"
+        self.assert_field_error(errors(self.doc), "analyse.model")
+        self.doc["stages"]["qa"]["model"] = "custom-model"
+        self.assert_field_error(errors(self.doc), "qa.model")
+
+    def test_relative_families_use_a_statically_known_model_family(self):
+        stages = self.doc["stages"]
+        stages["implement"]["model"] = "gpt-5"
+        stages["qa"].update(family={"sameAs": "fix"}, model="gpt-5")
+        stages["review"]["model"] = "claude-sonnet-4-6"
+        self.assertEqual(errors(self.doc), [])
+
+        stages["qa"]["model"], stages["review"]["model"] = (
+            stages["review"]["model"], stages["qa"]["model"],
+        )
+        found = errors(self.doc)
+        self.assert_field_error(found, "qa.model")
+        self.assert_field_error(found, "review.model")
+
+    def test_relative_family_waits_for_a_model_selected_at_runtime(self):
+        self.doc["stages"]["review"]["model"] = "gpt-5"
+        self.assertEqual(errors(self.doc), [])
+
+    def test_relative_family_also_applies_to_the_profile_default(self):
+        stages = self.doc["stages"]
+        stages["implement"]["family"] = "gpt"
+        stages["review"]["harness"] = "copilot"
+        self.assertEqual(errors(self.doc, profile={"models": {"default": "claude-sonnet-4-6"}}), [])
+        found = errors(self.doc, profile={"models": {"default": "gpt-5"}})
+        self.assert_field_error(found, "review.model")
 
     def test_stage_model_is_a_nonempty_string(self):
         for model in (None, 42, ["gpt-5"], {}, "", "  "):
             with self.subTest(model=model):
                 self.stage["model"] = model
-                self.refused("model")
+                self.assert_field_error(errors(self.doc), "analyse.model")
 
 
 V2_SITUATIONS = (
