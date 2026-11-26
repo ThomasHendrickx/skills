@@ -41,7 +41,11 @@ V2_DECISION_STAGES = {
     "implement": "implement", "fix": "fix", "qa": "qa",
 }
 V2_STATE_CONDITIONS = {"qaTests", "qaLoop", "reviewLoop", "afterQaFail"}
-V2_CHECKS = {"onOrigin", "redFirst", "noRewrite", "size", "tests", "testsOnly"}
+V2_CHECKS = {"onOrigin", "redFirst", "noRewrite", "size", "tests", "testsOnly", "headUnmoved"}
+# moved: the run branch's head moved under the run. Its decisions are its own.
+MOVED = "moved"
+MOVED_DECISIONS = ("review", "take-head", "stop")
+REVIEW_STAGE = "review"
 
 
 class _Loader(yaml.SafeLoader):
@@ -77,9 +81,30 @@ def origin(stages, name):
     return name
 
 
+def moved_targets(decisions, stages, found):
+    """Check the moved situation's decisions; return the stages they send the run to."""
+    where = f"stuck.{MOVED}"
+    if not isinstance(decisions, list) or not decisions:
+        found.append(f"{where}: expected a non-empty list of decisions")
+        return []
+    targets = []
+    for decision in decisions:
+        if not isinstance(decision, str) or decision not in MOVED_DECISIONS:
+            found.append(f"{where}: decision {decision!r} is not one of {list(MOVED_DECISIONS)}")
+        elif decision == "review":
+            if REVIEW_STAGE in stages:
+                targets.append(REVIEW_STAGE)
+            else:
+                found.append(f"{where}: 'review' needs a {REVIEW_STAGE!r} stage")
+    return targets
+
+
 def v1_routes(stages, stuck, found):
     routes = {}
     for situation, decisions in stuck.items():
+        if situation == MOVED:
+            routes[f"{STUCK}{MOVED}"] = moved_targets(decisions, stages, found)
+            continue
         for decision in decisions or []:
             if not isinstance(decision, str) or decision not in DECISIONS:
                 found.append(f"stuck.{situation}: decision {decision!r} is not one of {sorted(DECISIONS)}")
@@ -103,6 +128,9 @@ def v2_stuck_routes(stuck, stages, found):
     routes = {}
     for situation, decisions in stuck.items():
         where = f"stuck.{situation}"
+        if situation == MOVED:
+            routes[f"{STUCK}{situation}"] = moved_targets(decisions, stages, found)
+            continue
         if situation not in V2_SITUATIONS:
             found.append(f"{where}: unknown situation")
         if not isinstance(decisions, list) or not decisions:
@@ -420,9 +448,9 @@ def errors(doc, profile=None):
 
     first = next(iter(stages))
     reached, todo = {first}, [first]
-    if version == 2:
-        todo.extend(f"{STUCK}{situation}" for situation in RUNNER_SITUATIONS
-                    if f"{STUCK}{situation}" in routes)
+    implicit_situations = (*RUNNER_SITUATIONS, MOVED) if version == 2 else (MOVED,)
+    todo.extend(f"{STUCK}{situation}" for situation in implicit_situations
+                if f"{STUCK}{situation}" in routes)
     while todo:
         for target in routes[todo.pop()]:
             if target in routes and target not in reached:

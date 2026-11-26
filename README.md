@@ -51,6 +51,8 @@ Each file declares a top-level `type`, a short name for its kind of work: `fix` 
 
 The feature workflow and format version 2 are designed in `workflows/feature-design.md`.
 
+Both workflow files list the stuck situation `moved`: the run branch's head moved under the run. It allows three decisions. `review` sends the run to its `review` stage at the new head; the validator refuses it in a workflow without a `review` stage. `take-head` takes the new head as the run's head. `stop` stops the run with no resume. `review` and `take-head` belong to `moved` alone. The check that raises it, `headUnmoved`, runs before every step's action and before the finish; format version 2 accepts the name among a stage's checks.
+
 Both workflow format versions support four optional stage keys.
 
 - `harness` selects `claude-code`, `codex`, `copilot`, `antigravity` or `local`.
