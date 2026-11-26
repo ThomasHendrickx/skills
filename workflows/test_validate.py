@@ -578,6 +578,21 @@ class Moved(unittest.TestCase):
                     doc["stuck"]["moved"] = decisions
                     self.assertEqual(errors(doc), [])
 
+    def test_moved_can_be_the_only_route_to_review(self):
+        for version, doc in self.docs().items():
+            with self.subTest(version=version):
+                finish = "finish" if doc["version"] == 1 else [{"go": "finish"}]
+                doc["stages"] = {
+                    "implement": {"family": "any", "on": {"done": finish}},
+                    "review": {"family": "any", "on": {"approve": finish}},
+                }
+                doc.pop("gates", None)
+                doc["stuck"] = {situation: ["stop"] for situation in doc["stuck"]}
+
+                self.assertEqual(errors(doc), ["review: not reachable from implement"])
+                doc["stuck"]["moved"] = ["review", "take-head", "stop"]
+                self.assertEqual(errors(doc), [])
+
     def test_moved_refuses_review_without_a_review_stage(self):
         for version, doc in self.docs().items():
             with self.subTest(version=version):
