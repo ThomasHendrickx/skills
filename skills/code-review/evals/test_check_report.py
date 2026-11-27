@@ -11,6 +11,19 @@ class ParsePitfalls(unittest.TestCase):
     def test_no_file_means_no_ids(self):
         self.assertEqual(parse_pitfalls(""), [])
 
+    def test_reads_scoped_pitfall_id(self):
+        text = "P7: Missing transaction (#212) (paths: src/store/; for: implementor, reviewer)\n"
+        ids = parse_pitfalls(text)
+        self.assertEqual(ids, ["P7"])
+        self.assertEqual(check_report("Pitfalls checked: P7\nPitfalls hit: none\n", ids, []), [])
+
+    def test_reads_fixed_pitfall_id(self):
+        text = "- P9: Uses a fixed port (#240) [fixed: #251]\n"
+        ids = parse_pitfalls(text)
+        self.assertEqual(ids, ["P9"])
+        report = "Pitfalls checked: P9\nPitfalls hit: P9 (tests/server.py, setup)\n"
+        self.assertEqual(check_report(report, ids, ["P9"]), [])
+
 
 class CheckReport(unittest.TestCase):
     def test_with_file_passes_when_all_checked_and_hits_named(self):
